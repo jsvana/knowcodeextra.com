@@ -6,7 +6,7 @@ const testData = {
     speed: 5,
     title: 'Novice Class',
     year: '1991',
-    audioUrl: 'https://www.kb6nu.com/wp-content/uploads/2019/08/20wpm-Version-1C-4-91.mp3', // placeholder
+    audioUrl: '/audio/5wpm/test.mp3',
     questions: [
       { q: "What was the callsign mentioned in the transmission?", options: ["W1AW", "K3ABC", "N0XYZ", "WB4WXD"], answer: 0 },
       { q: "What frequency was discussed?", options: ["7.040 MHz", "14.060 MHz", "3.560 MHz", "21.040 MHz"], answer: 1 },
@@ -24,7 +24,7 @@ const testData = {
     speed: 13,
     title: 'General Class',
     year: '1991',
-    audioUrl: 'https://www.kb6nu.com/wp-content/uploads/2019/08/20wpm-Version-1C-4-91.mp3',
+    audioUrl: '/audio/13wpm/test.mp3',
     questions: [
       { q: "What was the callsign mentioned?", options: ["W1AW", "K3ABC", "N0XYZ", "WB4WXD"], answer: 0 },
       { q: "What frequency was discussed?", options: ["7.040 MHz", "14.060 MHz", "3.560 MHz", "21.040 MHz"], answer: 1 },
@@ -42,7 +42,7 @@ const testData = {
     speed: 20,
     title: 'Extra Class',
     year: '1991',
-    audioUrl: 'https://www.kb6nu.com/wp-content/uploads/2019/08/20wpm-Version-1C-4-91.mp3',
+    audioUrl: '/audio/20wpm/test.mp3',
     questions: [
       { q: "What was the callsign of the first station?", options: ["W1AW", "K3ABC", "N0XYZ", "WB4WXD"], answer: 0 },
       { q: "What frequency was mentioned?", options: ["7.040 MHz", "14.060 MHz", "3.560 MHz", "21.040 MHz"], answer: 1 },
@@ -87,8 +87,8 @@ const TelegraphKey = ({ className = "" }) => (
   </svg>
 );
 
-// API Configuration - change this to your deployed backend URL
-const API_BASE = 'http://localhost:3000';
+// API Configuration - empty string means same-origin requests
+const API_BASE = '';
 
 // Main App Component
 export default function KnowCodeExtra() {
@@ -852,3 +852,7 @@ export default function KnowCodeExtra() {
 
   return null;
 }
+
+// Mount the app
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(KnowCodeExtra));
