@@ -286,6 +286,22 @@ async fn create_attempt(
         return Err((StatusCode::BAD_REQUEST, "Callsign is required".to_string()));
     }
 
+    // Check if callsign already has a pending or approved attempt
+    let existing: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM attempts WHERE callsign = ? AND validation_status IN ('pending', 'approved') LIMIT 1"
+    )
+    .bind(&callsign)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if existing.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "You already have a passed attempt awaiting validation. Practice more at morsestorytime.com and keyersjourney.com".to_string(),
+        ));
+    }
+
     // Validate test speed
     if ![5, 13, 20].contains(&req.test_speed) {
         return Err((
@@ -299,8 +315,8 @@ async fn create_attempt(
 
     sqlx::query(
         r#"
-        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at, validation_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&id)
@@ -310,19 +326,10 @@ async fn create_attempt(
     .bind(req.copy_chars)
     .bind(req.passed)
     .bind(now.to_rfc3339())
+    .bind(if req.passed { Some("pending") } else { None::<&str> })
     .execute(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    let certificate_number = if req.passed {
-        Some(format!(
-            "{}WPM-{}",
-            req.test_speed,
-            id.split('-').next().unwrap_or(&id).to_uppercase()
-        ))
-    } else {
-        None
-    };
 
     let response = AttemptResponse {
         id,
@@ -332,7 +339,7 @@ async fn create_attempt(
         copy_chars: req.copy_chars,
         passed: req.passed,
         created_at: now,
-        certificate_number,
+        certificate_number: None, // Only assigned on admin approval
     };
 
     Ok((StatusCode::CREATED, Json(response)))
