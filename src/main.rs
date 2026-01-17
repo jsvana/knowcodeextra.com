@@ -474,10 +474,10 @@ async fn get_leaderboard(
         r#"
         SELECT
             callsign,
-            MAX(CASE WHEN passed = true THEN test_speed ELSE 0 END) as highest_speed_passed,
+            MAX(CASE WHEN passed = true AND validation_status = 'approved' THEN test_speed ELSE 0 END) as highest_speed_passed,
             COUNT(*) as total_attempts,
-            SUM(CASE WHEN passed = true THEN 1 ELSE 0 END) as total_passes,
-            MIN(CASE WHEN passed = true THEN created_at ELSE NULL END) as first_passed_at
+            SUM(CASE WHEN passed = true AND validation_status = 'approved' THEN 1 ELSE 0 END) as total_passes,
+            MIN(CASE WHEN passed = true AND validation_status = 'approved' THEN created_at ELSE NULL END) as first_passed_at
         FROM attempts
         GROUP BY callsign
         HAVING highest_speed_passed > 0
