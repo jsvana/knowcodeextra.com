@@ -60,6 +60,7 @@ const testData = {
 
 // Morse code for decorative elements
 const morsePatterns = {
+  BT: "−··· −",
   CQ: "−·−· −−·−",
   DE: "−·· ·",
   K: "−·−",
@@ -217,7 +218,7 @@ export default function KnowCodeExtra() {
         {/* Decorative morse border */}
         <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-amber-900/10 to-transparent flex items-center justify-center overflow-hidden">
           <div className="text-amber-900/20 font-mono text-xs tracking-[0.5em] whitespace-nowrap animate-pulse">
-            {morsePatterns.CQ} {morsePatterns.CQ} {morsePatterns.CQ} {morsePatterns.DE} {morsePatterns.K}
+            {morsePatterns.BT}
           </div>
         </div>
 
