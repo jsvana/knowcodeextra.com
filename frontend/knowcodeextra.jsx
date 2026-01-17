@@ -313,7 +313,10 @@ export default function KnowCodeExtra() {
               TEST MATERIALS COURTESY OF WB4WXD & KB6NU • NOT FOR OFFICIAL FCC USE
             </p>
             <p className="font-mono text-xs text-amber-600/60 mt-2">
-              −·−· ·−−· ·−·· ·−· ··−− ···−· ····− ···−−
+              {morsePatterns.BT}
+            </p>
+            <p className="font-mono text-xs text-amber-600 mt-4">
+              CONTACT: jaysvana@gmail.com / W6JSV
             </p>
           </footer>
           
