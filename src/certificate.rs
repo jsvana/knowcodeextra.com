@@ -170,23 +170,30 @@ pub async fn get_certificate_svg(
     State(state): State<Arc<crate::AppState>>,
     Path(attempt_id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Fetch the attempt from database
+    // Fetch the attempt from database - requires approved status
     let attempt: Option<crate::Attempt> = sqlx::query_as(
-        "SELECT id, callsign, test_speed, questions_correct, copy_chars, passed, created_at 
-         FROM attempts WHERE id = ? AND passed = true"
+        "SELECT id, callsign, test_speed, questions_correct, copy_chars, passed, created_at,
+                validation_status, certificate_number, validated_at, admin_note
+         FROM attempts WHERE id = ? AND passed = true AND validation_status = 'approved'"
     )
     .bind(&attempt_id)
     .fetch_optional(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let attempt = attempt.ok_or((StatusCode::NOT_FOUND, "Attempt not found or not passed".to_string()))?;
+    let attempt = attempt.ok_or((
+        StatusCode::NOT_FOUND,
+        "Certificate not available. Attempt may be pending approval or not passed.".to_string()
+    ))?;
 
-    // Generate certificate number (always 20WPM for Extra)
-    let cert_no = format!(
-        "20WPM-{}",
-        attempt.id.split('-').next().unwrap_or(&attempt.id).to_uppercase()
-    );
+    // Use the assigned certificate number from database
+    let cert_no = match attempt.certificate_number {
+        Some(num) => format!("#{}", num),
+        None => return Err((
+            StatusCode::NOT_FOUND,
+            "Certificate number not yet assigned".to_string()
+        )),
+    };
 
     // Format date
     let date = attempt.created_at.format("%B %d, %Y").to_string();
