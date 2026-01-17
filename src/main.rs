@@ -33,6 +33,12 @@ pub struct Config {
 
     #[serde(default = "Config::default_log_level")]
     pub log_level: String,
+
+    #[serde(default = "Config::default_admin_username")]
+    pub admin_username: String,
+
+    #[serde(default = "Config::default_admin_password")]
+    pub admin_password: String,
 }
 
 impl Config {
@@ -52,6 +58,14 @@ impl Config {
         "knowcodeextra=info,tower_http=info".to_string()
     }
 
+    fn default_admin_username() -> String {
+        "admin".to_string()
+    }
+
+    fn default_admin_password() -> String {
+        "changeme".to_string()
+    }
+
     pub fn load() -> Result<Self, config::ConfigError> {
         let config_path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
 
@@ -61,6 +75,8 @@ impl Config {
             .set_default("listen_addr", Self::default_listen_addr())?
             .set_default("static_dir", Self::default_static_dir())?
             .set_default("log_level", Self::default_log_level())?
+            .set_default("admin_username", Self::default_admin_username())?
+            .set_default("admin_password", Self::default_admin_password())?
             // Layer on config file (optional)
             .add_source(config::File::with_name(&config_path).required(false))
             // Layer on environment variables (prefix KNOWCODE_)
@@ -184,6 +200,8 @@ pub struct CallsignQuery {
 #[derive(Clone)]
 pub struct AppState {
     pub db: SqlitePool,
+    pub admin_username: String,
+    pub admin_password: String,
 }
 
 // ============================================================================
@@ -563,7 +581,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     setup_database(&pool).await?;
     tracing::info!("Database setup complete");
 
-    let state = Arc::new(AppState { db: pool });
+    let state = Arc::new(AppState {
+        db: pool,
+        admin_username: config.admin_username.clone(),
+        admin_password: config.admin_password.clone(),
+    });
 
     // CORS configuration
     let cors = CorsLayer::new()
