@@ -230,6 +230,7 @@ export default function KnowCodeExtra() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [stats, setStats] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [blockedMessage, setBlockedMessage] = useState(null);
   const audioRef = useRef(null);
 
   // Fetch leaderboard data
@@ -268,12 +269,15 @@ export default function KnowCodeExtra() {
       });
       if (response.ok) {
         const data = await response.json();
-        return data;
+        return { success: true, data };
+      } else if (response.status === 400) {
+        const text = await response.text();
+        return { success: false, blocked: true, message: text };
       }
     } catch (error) {
       console.error("Failed to submit attempt:", error);
     }
-    return null;
+    return { success: false };
   };
 
   const handleStartTest = (testKey) => {
@@ -316,8 +320,15 @@ export default function KnowCodeExtra() {
       passed: didPass,
     });
 
-    if (result?.certificate_number) {
-      setCertificateNumber(result.certificate_number);
+    if (result?.blocked) {
+      setBlockedMessage(result.message);
+      setView("blocked");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (result?.success && result.data?.certificate_number) {
+      setCertificateNumber(result.data.certificate_number);
     }
 
     setIsSubmitting(false);
@@ -834,16 +845,19 @@ export default function KnowCodeExtra() {
                 </div>
               </div>
 
+              {passed && (
+                <div className="bg-amber-100 border-2 border-amber-400 p-6 mb-6">
+                  <h3 className="font-mono text-sm text-amber-800 mb-2 font-bold">
+                    VERIFICATION PENDING
+                  </h3>
+                  <p className="font-serif text-amber-800">
+                    Congratulations! Your result has been submitted for verification.
+                    Once approved, you'll be able to view and download your official certificate.
+                  </p>
+                </div>
+              )}
+
               <div className="flex flex-col gap-4">
-                {passed && (
-                  <button
-                    onClick={() => setView("certificate")}
-                    className="bg-amber-900 text-amber-50 px-8 py-4 font-mono tracking-widest
-                            hover:bg-amber-800 transition-all shadow-lg"
-                  >
-                    VIEW CERTIFICATE
-                  </button>
-                )}
                 <button
                   onClick={() => setView("select")}
                   className="bg-white text-amber-900 px-8 py-4 font-mono tracking-widest
@@ -1093,6 +1107,54 @@ export default function KnowCodeExtra() {
                         hover:bg-amber-800 transition-all shadow-lg"
               >
                 TAKE THE TEST
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Blocked Page (already has a pending/approved attempt)
+  if (view === "blocked") {
+    return (
+      <div className="min-h-screen bg-amber-50 text-stone-800 relative">
+        <VintagePattern />
+        <div className="relative z-10 max-w-2xl mx-auto px-6 py-12">
+          <div className="bg-amber-50/95 backdrop-blur-sm shadow-2xl shadow-amber-900/10 border border-amber-200/50 p-8">
+            <div className="text-center">
+              <h1 className="font-serif text-3xl font-bold text-amber-900 mb-4">
+                Already Submitted
+              </h1>
+              <p className="font-serif text-amber-800 mb-6">
+                You already have a passed attempt awaiting verification.
+              </p>
+              <p className="font-serif text-amber-700 mb-8">
+                While you wait, practice more at:
+              </p>
+              <div className="space-y-4">
+                <a
+                  href="https://morsestorytime.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-amber-900 text-amber-50 px-8 py-4 font-mono tracking-widest hover:bg-amber-800 transition-all"
+                >
+                  MORSE STORY TIME
+                </a>
+                <a
+                  href="https://keyersjourney.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-white text-amber-900 px-8 py-4 font-mono tracking-widest border-2 border-amber-300 hover:border-amber-500 transition-all"
+                >
+                  KEYER'S JOURNEY
+                </a>
+              </div>
+              <button
+                onClick={() => setView("home")}
+                className="mt-8 font-mono text-sm text-amber-700 hover:text-amber-900 underline"
+              >
+                Return Home
               </button>
             </div>
           </div>
