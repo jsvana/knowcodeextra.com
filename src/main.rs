@@ -502,10 +502,12 @@ async fn get_stats(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let total_passes: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM attempts WHERE passed = true")
-        .fetch_one(&state.db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let total_passes: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM attempts WHERE passed = true AND validation_status = 'approved'"
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let unique_callsigns: (i64,) =
         sqlx::query_as("SELECT COUNT(DISTINCT callsign) FROM attempts")
@@ -515,10 +517,10 @@ async fn get_stats(
 
     let attempts_by_speed: Vec<SpeedStats> = sqlx::query_as(
         r#"
-        SELECT 
+        SELECT
             test_speed,
             COUNT(*) as attempts,
-            SUM(CASE WHEN passed = true THEN 1 ELSE 0 END) as passes
+            SUM(CASE WHEN passed = true AND validation_status = 'approved' THEN 1 ELSE 0 END) as passes
         FROM attempts
         GROUP BY test_speed
         ORDER BY test_speed
