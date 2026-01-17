@@ -118,6 +118,14 @@ pub struct Attempt {
     pub copy_chars: i32,
     pub passed: bool,
     pub created_at: DateTime<Utc>,
+    #[sqlx(default)]
+    pub validation_status: Option<String>,
+    #[sqlx(default)]
+    pub certificate_number: Option<i32>,
+    #[sqlx(default)]
+    pub validated_at: Option<DateTime<Utc>>,
+    #[sqlx(default)]
+    pub admin_note: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,6 +221,32 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await?;
 
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_created_at ON attempts(created_at DESC)")
+        .execute(pool)
+        .await?;
+
+    // Add validation columns (idempotent - ignores if already exists)
+    sqlx::query("ALTER TABLE attempts ADD COLUMN validation_status TEXT")
+        .execute(pool)
+        .await
+        .ok(); // Ignore error if column exists
+
+    sqlx::query("ALTER TABLE attempts ADD COLUMN certificate_number INTEGER")
+        .execute(pool)
+        .await
+        .ok();
+
+    sqlx::query("ALTER TABLE attempts ADD COLUMN validated_at TEXT")
+        .execute(pool)
+        .await
+        .ok();
+
+    sqlx::query("ALTER TABLE attempts ADD COLUMN admin_note TEXT")
+        .execute(pool)
+        .await
+        .ok();
+
+    // Index for validation queue queries
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_validation_status ON attempts(validation_status)")
         .execute(pool)
         .await?;
 
