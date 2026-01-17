@@ -58,7 +58,7 @@ sudo mkdir -p /opt/knowcodeextra/{static,data}
 sudo chown -R www-data:www-data /opt/knowcodeextra
 
 # Copy files
-scp target/release/knowcodeextra_api user@vps:/opt/knowcodeextra/
+scp target/release/knowcodeextra user@vps:/opt/knowcodeextra/
 scp -r static/* user@vps:/opt/knowcodeextra/static/
 
 # Install service
@@ -78,7 +78,7 @@ sudo systemctl reload nginx
 ```bash
 cargo build --release
 cd frontend && ./build.sh && cd ..
-scp target/release/knowcodeextra_api user@vps:/opt/knowcodeextra/
+scp target/release/knowcodeextra user@vps:/opt/knowcodeextra/
 scp -r static/* user@vps:/opt/knowcodeextra/static/
 ssh user@vps "sudo systemctl restart knowcodeextra"
 ```

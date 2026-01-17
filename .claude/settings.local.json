@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: flatten project structure and add static file serving\n\n- Move Rust files from knowcodeextra-api/ to project root\n- Add tower-http fs feature for static file serving\n- Add fallback service for SPA routing\n- Convert query_as! to query_as for compile-time flexibility\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: update frontend for production\n\n- Change API_BASE to empty string for same-origin requests\n- Update audio URLs to local paths\n- Add React render call for mounting\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

@@ -7,10 +7,10 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=/opt/knowcodeextra
-ExecStart=/opt/knowcodeextra/knowcodeextra_api
+ExecStart=/opt/knowcodeextra/knowcodeextra
 Restart=always
 RestartSec=5
-Environment=RUST_LOG=knowcodeextra_api=info,tower_http=info
+Environment=RUST_LOG=knowcodeextra=info,tower_http=info
 Environment=DATABASE_URL=sqlite:/opt/knowcodeextra/data/knowcodeextra.db
 Environment=LISTEN_ADDR=127.0.0.1:3000
 Environment=STATIC_DIR=/opt/knowcodeextra/static
