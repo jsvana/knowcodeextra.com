@@ -14,6 +14,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
+mod certificate;
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -543,6 +545,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/attempts/:callsign", get(get_callsign_attempts))
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
+        .route("/api/certificate/:attempt_id", get(certificate::get_certificate_svg))
         .fallback_service(
             ServeDir::new(&config.static_dir)
                 .not_found_service(ServeFile::new(format!("{}/index.html", config.static_dir))),
