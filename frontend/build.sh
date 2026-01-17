@@ -14,17 +14,20 @@ fi
 mkdir -p ../static
 
 # Bundle JSX
+# Use classic JSX transform to work with CDN-loaded React globals
 npx esbuild knowcodeextra.jsx \
     --bundle \
     --outfile=../static/app.js \
     --minify \
     --format=iife \
     --global-name=App \
-    --external:react \
-    --external:react-dom \
     --loader:.jsx=jsx \
-    --jsx=automatic \
-    --jsx-import-source=react
+    --jsx=transform \
+    --jsx-factory=React.createElement \
+    --jsx-fragment=React.Fragment \
+    --define:process.env.NODE_ENV=\"production\" \
+    --alias:react=./react-shim.js \
+    --alias:react-dom=./react-dom-shim.js
 
 # Copy HTML
 cp index.html ../static/
