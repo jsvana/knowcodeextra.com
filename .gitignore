@@ -1,0 +1,25 @@
+# Build artifacts
+/target/
+/knowcodeextra-api/target/
+
+# Dependencies
+/node_modules/
+/frontend/node_modules/
+
+# Environment and database
+.env
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Built frontend (regenerated from source)
+/static/app.js
