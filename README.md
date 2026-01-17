@@ -28,6 +28,7 @@ Visit http://localhost:3000
 
 ```
 ├── src/main.rs          # Rust server
+├── config.toml          # Configuration file
 ├── frontend/            # React source
 │   ├── knowcodeextra.jsx
 │   ├── index.html
@@ -40,6 +41,19 @@ Visit http://localhost:3000
     ├── knowcodeextra.service
     └── nginx.conf
 ```
+
+## Configuration
+
+The server is configured via `config.toml`. All settings can also be overridden via environment variables.
+
+| Setting | Env Var | Default | Description |
+|---------|---------|---------|-------------|
+| `database_url` | `KNOWCODE_DATABASE_URL` or `DATABASE_URL` | `sqlite:knowcodeextra.db` | SQLite database path |
+| `listen_addr` | `KNOWCODE_LISTEN_ADDR` or `LISTEN_ADDR` | `0.0.0.0:3000` | Server bind address |
+| `static_dir` | `KNOWCODE_STATIC_DIR` or `STATIC_DIR` | `./static` | Static files directory |
+| `log_level` | `KNOWCODE_LOG_LEVEL` or `RUST_LOG` | `knowcodeextra=info,tower_http=info` | Log level filter |
+
+Config file location can be changed with `CONFIG_FILE` env var.
 
 ## Deployment
 
@@ -59,6 +73,7 @@ sudo chown -R www-data:www-data /opt/knowcodeextra
 
 # Copy files
 scp target/release/knowcodeextra user@vps:/opt/knowcodeextra/
+scp deploy/config.toml user@vps:/opt/knowcodeextra/
 scp -r static/* user@vps:/opt/knowcodeextra/static/
 
 # Install service

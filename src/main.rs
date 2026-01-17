@@ -15,6 +15,86 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 // ============================================================================
+// Configuration
+// ============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    #[serde(default = "Config::default_database_url")]
+    pub database_url: String,
+
+    #[serde(default = "Config::default_listen_addr")]
+    pub listen_addr: String,
+
+    #[serde(default = "Config::default_static_dir")]
+    pub static_dir: String,
+
+    #[serde(default = "Config::default_log_level")]
+    pub log_level: String,
+}
+
+impl Config {
+    fn default_database_url() -> String {
+        "sqlite:knowcodeextra.db".to_string()
+    }
+
+    fn default_listen_addr() -> String {
+        "0.0.0.0:3000".to_string()
+    }
+
+    fn default_static_dir() -> String {
+        "./static".to_string()
+    }
+
+    fn default_log_level() -> String {
+        "knowcodeextra=info,tower_http=info".to_string()
+    }
+
+    pub fn load() -> Result<Self, config::ConfigError> {
+        let config_path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
+
+        config::Config::builder()
+            // Start with defaults
+            .set_default("database_url", Self::default_database_url())?
+            .set_default("listen_addr", Self::default_listen_addr())?
+            .set_default("static_dir", Self::default_static_dir())?
+            .set_default("log_level", Self::default_log_level())?
+            // Layer on config file (optional)
+            .add_source(config::File::with_name(&config_path).required(false))
+            // Layer on environment variables (prefix KNOWCODE_)
+            .add_source(
+                config::Environment::with_prefix("KNOWCODE")
+                    .separator("_")
+                    .try_parsing(true),
+            )
+            // Legacy env var support
+            .add_source(
+                config::Environment::default()
+                    .prefix("")
+                    .try_parsing(true)
+                    .source(Some({
+                        let mut map = std::collections::HashMap::new();
+                        if let Ok(v) = std::env::var("DATABASE_URL") {
+                            map.insert("database_url".to_string(), v);
+                        }
+                        if let Ok(v) = std::env::var("LISTEN_ADDR") {
+                            map.insert("listen_addr".to_string(), v);
+                        }
+                        if let Ok(v) = std::env::var("STATIC_DIR") {
+                            map.insert("static_dir".to_string(), v);
+                        }
+                        if let Ok(v) = std::env::var("RUST_LOG") {
+                            map.insert("log_level".to_string(), v);
+                        }
+                        map
+                    })),
+            )
+            .build()?
+            .try_deserialize()
+    }
+}
+
+// ============================================================================
 // Data Types
 // ============================================================================
 
@@ -412,26 +492,29 @@ async fn health() -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
+    // Load .env file first (so env vars are available for config)
+    dotenvy::dotenv().ok();
+
+    // Load configuration
+    let config = Config::load()?;
+
+    // Initialize tracing with configured log level
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "knowcodeextra=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| config.log_level.clone().into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Load environment variables
-    dotenvy::dotenv().ok();
+    tracing::info!("Configuration loaded");
+    tracing::debug!(?config, "Full configuration");
 
     // Database connection
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:knowcodeextra.db".to_string());
-    let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());
+    tracing::info!("Connecting to database: {}", config.database_url);
 
-    tracing::info!("Connecting to database: {}", database_url);
-
-    let connect_options: SqliteConnectOptions = database_url
+    let connect_options: SqliteConnectOptions = config
+        .database_url
         .parse::<SqliteConnectOptions>()?
         .create_if_missing(true);
 
@@ -461,19 +544,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
         .fallback_service(
-            ServeDir::new(&static_dir)
-                .not_found_service(ServeFile::new(format!("{}/index.html", static_dir))),
+            ServeDir::new(&config.static_dir)
+                .not_found_service(ServeFile::new(format!("{}/index.html", config.static_dir))),
         )
         .layer(cors)
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(state);
 
-    tracing::info!("Serving static files from {}", static_dir);
+    tracing::info!("Serving static files from {}", config.static_dir);
 
     // Start server
-    let addr = std::env::var("LISTEN_ADDR").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    tracing::info!("Server listening on {}", addr);
+    let listener = tokio::net::TcpListener::bind(&config.listen_addr).await?;
+    tracing::info!("Server listening on {}", config.listen_addr);
 
     axum::serve(listener, app).await?;
 

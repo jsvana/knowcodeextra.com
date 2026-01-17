@@ -1,0 +1,24 @@
+# KnowCodeExtra Configuration
+#
+# This file configures the KnowCodeExtra server.
+# All settings can also be overridden via environment variables
+# with the KNOWCODE_ prefix (e.g., KNOWCODE_DATABASE_URL).
+#
+# Legacy environment variables (DATABASE_URL, LISTEN_ADDR, STATIC_DIR, RUST_LOG)
+# are also supported for backwards compatibility.
+
+# Database connection string
+# For SQLite, use: sqlite:path/to/database.db
+database_url = "sqlite:knowcodeextra.db"
+
+# Server listen address
+# Format: "host:port"
+listen_addr = "0.0.0.0:3000"
+
+# Directory containing static files (HTML, JS, audio)
+static_dir = "./static"
+
+# Log level configuration
+# Format: "crate=level,crate=level"
+# Levels: trace, debug, info, warn, error
+log_level = "knowcodeextra=info,tower_http=info"

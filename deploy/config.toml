@@ -1,0 +1,14 @@
+# KnowCodeExtra Production Configuration
+# Copy to /opt/knowcodeextra/config.toml
+
+# Database location (ensure directory exists and is writable)
+database_url = "sqlite:/opt/knowcodeextra/data/knowcodeextra.db"
+
+# Listen on localhost only (nginx proxies from outside)
+listen_addr = "127.0.0.1:3000"
+
+# Static files directory
+static_dir = "/opt/knowcodeextra/static"
+
+# Production log level
+log_level = "knowcodeextra=info,tower_http=info"
