@@ -1327,6 +1327,91 @@ function useAdminAuth() {
   return context;
 }
 
+// Admin Login Page
+function AdminLogin() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const { login, isLoading } = useAdminAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    const result = await login(username, password);
+    if (!result.success) {
+      setError(result.error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
+      <div className="bg-white border-4 border-amber-800 shadow-2xl max-w-md w-full p-8 relative">
+        <div className="text-center mb-8">
+          <TelegraphKey className="w-16 h-8 text-amber-800 mx-auto mb-4" />
+          <h1
+            className="font-serif text-3xl font-bold text-amber-900"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            Admin Portal
+          </h1>
+          <p className="font-mono text-xs text-amber-600 mt-2">KNOW CODE EXTRA</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border-2 border-red-300 p-3 text-red-800 font-mono text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="font-mono text-xs text-amber-700 block mb-1 font-medium">
+              USERNAME
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full border-2 border-amber-300 bg-amber-50 px-4 py-3 font-mono
+                       focus:border-amber-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="font-mono text-xs text-amber-700 block mb-1 font-medium">
+              PASSWORD
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border-2 border-amber-300 bg-amber-50 px-4 py-3 font-mono
+                       focus:border-amber-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-amber-900 text-amber-50 px-6 py-4 font-mono tracking-widest
+                     hover:bg-amber-800 transition-all disabled:opacity-50"
+          >
+            {isLoading ? "SIGNING IN..." : "SIGN IN"}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center">
+          <a href="/" className="font-mono text-sm text-amber-600 hover:text-amber-800">
+            &larr; Return to main site
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Mount the app
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(KnowCodeExtra));
