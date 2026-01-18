@@ -23,3 +23,7 @@ Thumbs.db
 
 # Built frontend (regenerated from source)
 /static/app.js
+
+# Audio files (not included in repo - download separately)
+/static/audio/**/*.mp3
+/static/audio/**/*.pdf
