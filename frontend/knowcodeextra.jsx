@@ -2295,6 +2295,138 @@ function AdminSearch() {
   );
 }
 
-// Mount the app
+// Admin Settings Page
+function AdminSettings() {
+  const { adminFetch } = useAdminAuth();
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await adminFetch(`${API_BASE}/api/admin/settings`);
+        if (!response.ok) throw new Error("Failed to fetch settings");
+        const data = await response.json();
+        setSettings(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="font-mono text-amber-600">Loading...</div>
+      </div>
+    );
+  }
+
+  const configItems = settings ? [
+    { label: "Database", value: settings.database_url },
+    { label: "Listen Address", value: settings.listen_addr },
+    { label: "Static Directory", value: settings.static_dir },
+    { label: "Log Level", value: settings.log_level },
+    { label: "QRZ Integration", value: settings.qrz_enabled ? "Enabled" : "Disabled", status: settings.qrz_enabled },
+  ] : [];
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white border-2 border-amber-300 shadow-sm">
+        <div className="bg-amber-900 text-amber-50 px-6 py-3">
+          <h3 className="font-mono text-sm tracking-widest">CURRENT CONFIGURATION</h3>
+        </div>
+        <div className="divide-y divide-amber-200">
+          {configItems.map((item) => (
+            <div key={item.label} className="px-6 py-4 flex items-center justify-between">
+              <span className="font-mono text-sm text-amber-700">{item.label}</span>
+              <span className="font-mono text-sm text-amber-900">
+                {item.status !== undefined ? (
+                  <span className={`px-2 py-1 text-xs ${item.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                    {item.value}
+                  </span>
+                ) : (
+                  item.value
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="bg-amber-100 border-l-4 border-amber-600 p-4">
+        <p className="font-serif text-amber-800 text-sm">
+          <strong>Note:</strong> Settings are configured via <code className="bg-amber-200 px-1">config.toml</code> or environment variables.
+          Changes require a server restart.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Admin App with Hash-based Routing
+function AdminApp() {
+  const { isAuthenticated } = useAdminAuth();
+  const [currentPage, setCurrentPage] = useState("dashboard");
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith("#/admin/")) {
+        const page = hash.replace("#/admin/", "");
+        if (["dashboard", "queue", "approved", "search", "settings"].includes(page)) {
+          setCurrentPage(page);
+        }
+      }
+    };
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const navigateTo = (page) => {
+    window.location.hash = `/admin/${page}`;
+    setCurrentPage(page);
+  };
+
+  if (!isAuthenticated) {
+    return <AdminLogin />;
+  }
+
+  let content;
+  switch (currentPage) {
+    case "dashboard": content = <AdminDashboard onNavigate={navigateTo} />; break;
+    case "queue": content = <AdminQueue onPendingCountChange={setPendingCount} />; break;
+    case "approved": content = <AdminApproved />; break;
+    case "search": content = <AdminSearch />; break;
+    case "settings": content = <AdminSettings />; break;
+    default: content = <AdminDashboard onNavigate={navigateTo} />;
+  }
+
+  return (
+    <AdminLayout currentPage={currentPage} pendingCount={pendingCount}>
+      {content}
+    </AdminLayout>
+  );
+}
+
+// Mount the app based on URL
+function App() {
+  const isAdminRoute = window.location.pathname.startsWith("/admin");
+
+  if (isAdminRoute) {
+    return (
+      <AdminAuthProvider>
+        <AdminApp />
+      </AdminAuthProvider>
+    );
+  }
+
+  return <KnowCodeExtra />;
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(KnowCodeExtra));
+root.render(React.createElement(App));
