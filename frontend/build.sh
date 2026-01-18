@@ -29,6 +29,10 @@ npx esbuild knowcodeextra.jsx \
     --alias:react=./react-shim.js \
     --alias:react-dom=./react-dom-shim.js
 
+# Build Tailwind CSS
+echo "Building CSS..."
+npx tailwindcss -i ./input.css -o ../static/styles.css --minify
+
 # Copy HTML
 cp index.html ../static/
 
