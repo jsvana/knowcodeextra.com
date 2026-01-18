@@ -64,6 +64,16 @@ pub struct RejectForm {
     note: Option<String>,
 }
 
+#[derive(Debug, FromRow)]
+struct ApprovedAttempt {
+    id: String,
+    callsign: String,
+    certificate_number: Option<i32>,
+    validated_at: Option<DateTime<Utc>>,
+    email: Option<String>,
+    reached_out: bool,
+}
+
 /// Admin queue page
 pub async fn admin_queue(
     State(state): State<Arc<crate::AppState>>,
@@ -326,4 +336,120 @@ pub async fn reject_attempt(
     }
 
     Ok(Redirect::to("/admin/queue"))
+}
+
+/// Approved attempts page with outreach tracking
+pub async fn approved_list(
+    State(state): State<Arc<crate::AppState>>,
+    headers: axum::http::HeaderMap,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    let auth = headers.get(header::AUTHORIZATION).and_then(|h| h.to_str().ok());
+
+    if !check_auth(auth, &state.admin_username, &state.admin_password) {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            [(header::WWW_AUTHENTICATE, "Basic realm=\"Admin\"")],
+            "Unauthorized",
+        ));
+    }
+
+    let approved: Vec<ApprovedAttempt> = sqlx::query_as(
+        "SELECT id, callsign, certificate_number, validated_at, email, reached_out
+         FROM attempts
+         WHERE validation_status = 'approved'
+         ORDER BY certificate_number DESC"
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    let rows: String = if approved.is_empty() {
+        "<tr><td colspan=\"6\" style=\"text-align:center;padding:2rem;\">No approved attempts yet</td></tr>".to_string()
+    } else {
+        approved.iter().map(|a| {
+            let email_display = a.email.as_deref().unwrap_or("Not found");
+            let reached_out_display = if a.reached_out { "Yes" } else { "No" };
+            let row_style = if a.reached_out { "opacity: 0.5;" } else { "" };
+            let validated = a.validated_at
+                .map(|d| d.format("%Y-%m-%d").to_string())
+                .unwrap_or_default();
+
+            format!(r#"
+                <tr style="{}">
+                    <td><input type="checkbox" name="ids" value="{}" class="attempt-checkbox" /></td>
+                    <td>{}</td>
+                    <td>{}</td>
+                    <td>#{}</td>
+                    <td>{}</td>
+                    <td>{}</td>
+                </tr>
+            "#,
+                row_style,
+                a.id,
+                a.callsign,
+                email_display,
+                a.certificate_number.unwrap_or(0),
+                validated,
+                reached_out_display
+            )
+        }).collect()
+    };
+
+    let html = format!(r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>Approved Attempts - Know Code Extra</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {{ font-family: monospace; max-width: 1000px; margin: 0 auto; padding: 1rem; background: #fffbeb; }}
+        h1 {{ color: #78350f; }}
+        table {{ width: 100%; border-collapse: collapse; background: white; }}
+        th, td {{ border: 1px solid #d97706; padding: 0.75rem; text-align: left; }}
+        th {{ background: #78350f; color: white; }}
+        tr:nth-child(even) {{ background: #fef3c7; }}
+        .actions {{ margin-bottom: 1rem; }}
+        .btn {{ background: #78350f; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; }}
+        .btn:hover {{ background: #92400e; }}
+        nav {{ margin-bottom: 1rem; }}
+        nav a {{ color: #78350f; }}
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/admin/queue">&larr; Pending Queue</a>
+    </nav>
+    <h1>Approved Attempts</h1>
+    <form method="POST" action="/admin/approved/mark-reached-out">
+        <div class="actions">
+            <button type="submit" class="btn">Mark Selected as Reached Out</button>
+            <label style="margin-left:1rem;">
+                <input type="checkbox" id="selectAll" onclick="toggleAll()" /> Select All
+            </label>
+        </div>
+        <table>
+            <tr>
+                <th style="width:30px;"></th>
+                <th>Callsign</th>
+                <th>Email</th>
+                <th>Cert #</th>
+                <th>Approved</th>
+                <th>Reached Out</th>
+            </tr>
+            {}
+        </table>
+    </form>
+
+    <script>
+        function toggleAll() {{
+            var checkboxes = document.querySelectorAll('.attempt-checkbox');
+            var selectAll = document.getElementById('selectAll');
+            checkboxes.forEach(function(cb) {{
+                cb.checked = selectAll.checked;
+            }});
+        }}
+    </script>
+</body>
+</html>"#, rows);
+
+    Ok(Html(html))
 }

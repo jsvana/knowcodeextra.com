@@ -639,6 +639,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/admin/queue", get(admin::admin_queue))
         .route("/admin/queue/:id/approve", post(admin::approve_attempt))
         .route("/admin/queue/:id/reject", post(admin::reject_attempt))
+        .route("/admin/approved", get(admin::approved_list))
         .fallback_service(
             ServeDir::new(&config.static_dir)
                 .not_found_service(ServeFile::new(format!("{}/index.html", config.static_dir))),
