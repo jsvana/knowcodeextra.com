@@ -285,13 +285,11 @@ export default function KnowCodeExtra() {
             {/* Decorative divider */}
             <div className="flex items-center justify-center my-12">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-700" />
                 <div className="w-4 h-1 bg-amber-700" />
                 <div className="w-2 h-2 rounded-full bg-amber-700" />
-                <div className="w-8 h-1 bg-amber-700" />
+                <div className="w-2 h-2 rounded-full bg-amber-700" />
                 <div className="w-2 h-2 rounded-full bg-amber-700" />
                 <div className="w-4 h-1 bg-amber-700" />
-                <div className="w-2 h-2 rounded-full bg-amber-700" />
               </div>
             </div>
 
