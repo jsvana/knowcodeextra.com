@@ -1520,6 +1520,127 @@ function AdminLayout({ children, currentPage, pendingCount = 0 }) {
   );
 }
 
+// Admin Dashboard Page
+function AdminDashboard({ onNavigate }) {
+  const { adminFetch } = useAdminAuth();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchStats = async () => {
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/stats`);
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      const data = await response.json();
+      setStats(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    const handleFocus = () => fetchStats();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="font-mono text-amber-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border-2 border-red-300 p-6 text-center">
+        <p className="text-red-800 font-mono mb-4">{error}</p>
+        <button
+          onClick={fetchStats}
+          className="bg-red-600 text-white px-4 py-2 font-mono text-sm hover:bg-red-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const statCards = [
+    { label: "Pending", value: stats.pending_count, highlight: stats.pending_count > 0 },
+    { label: "Approved Today", value: stats.approved_today },
+    { label: "Total Certificates", value: stats.total_certificates },
+    { label: "Rejections", value: stats.rejected_count },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map((card) => (
+          <div
+            key={card.label}
+            className={`bg-white border-2 p-6 shadow-sm ${
+              card.highlight ? "border-amber-500 bg-amber-50" : "border-amber-300"
+            }`}
+          >
+            <p className="font-mono text-xs text-amber-600 mb-1">{card.label.toUpperCase()}</p>
+            <p className="font-serif text-3xl font-bold text-amber-900">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {stats.pending_count > 0 && (
+        <div className="bg-amber-100 border-2 border-amber-400 p-4 flex items-center justify-between">
+          <p className="font-serif text-amber-800">
+            You have <strong>{stats.pending_count}</strong> attempt(s) awaiting review
+          </p>
+          <button
+            onClick={() => onNavigate("queue")}
+            className="bg-amber-900 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-800"
+          >
+            Review Queue
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white border-2 border-amber-300 shadow-sm">
+        <div className="bg-amber-900 text-amber-50 px-6 py-3">
+          <h3 className="font-mono text-sm tracking-widest">RECENT ACTIVITY</h3>
+        </div>
+        <div className="divide-y divide-amber-200">
+          {stats.recent_activity.length === 0 ? (
+            <p className="px-6 py-8 text-center text-amber-600 font-serif italic">
+              No recent activity
+            </p>
+          ) : (
+            stats.recent_activity.map((item) => (
+              <div key={item.id} className="px-6 py-4 flex items-center justify-between">
+                <div>
+                  <span className="font-mono text-amber-900 font-bold">{item.callsign}</span>
+                  <span className={`ml-2 text-xs px-2 py-0.5 font-mono ${
+                    item.action === "approved"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}>
+                    {item.action}
+                  </span>
+                </div>
+                <span className="font-mono text-xs text-amber-600">
+                  {new Date(item.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Mount the app
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(KnowCodeExtra));
