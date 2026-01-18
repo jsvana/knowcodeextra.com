@@ -112,6 +112,7 @@ export default function KnowCodeExtra() {
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [audioPlayed, setAudioPlayed] = useState(false);
   const [certificateNumber, setCertificateNumber] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [stats, setStats] = useState(null);
@@ -173,6 +174,9 @@ export default function KnowCodeExtra() {
     setTestComplete(false);
     setScore(null);
     setPassed(false);
+    setAudioPlayed(false);
+    setAudioProgress(0);
+    setAudioCurrentTime(0);
     setView("test");
   };
 
@@ -549,7 +553,10 @@ export default function KnowCodeExtra() {
                 src={test.audioUrl}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
+                onEnded={() => {
+                  setIsPlaying(false);
+                  setAudioPlayed(true);
+                }}
                 onLoadedMetadata={(e) => {
                   setAudioDuration(e.target.duration);
                 }}
@@ -565,7 +572,7 @@ export default function KnowCodeExtra() {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => {
-                    if (audioRef.current) {
+                    if (audioRef.current && !audioPlayed) {
                       if (isPlaying) {
                         audioRef.current.pause();
                       } else {
@@ -573,10 +580,13 @@ export default function KnowCodeExtra() {
                       }
                     }
                   }}
-                  className="w-16 h-16 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center
-                          hover:bg-white transition-colors shadow-lg text-2xl font-bold"
+                  disabled={audioPlayed}
+                  className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg text-2xl font-bold transition-colors
+                          ${audioPlayed
+                            ? "bg-amber-800 text-amber-500 cursor-not-allowed"
+                            : "bg-amber-100 text-amber-900 hover:bg-white"}`}
                 >
-                  {isPlaying ? "❚❚" : "▶"}
+                  {audioPlayed ? "✓" : isPlaying ? "❚❚" : "▶"}
                 </button>
 
                 <div className="flex-1">
@@ -588,7 +598,7 @@ export default function KnowCodeExtra() {
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <p className="font-mono text-xs text-amber-300">
-                      {isPlaying ? "TRANSMITTING..." : "READY TO TRANSMIT"}
+                      {audioPlayed ? "TRANSMISSION COMPLETE" : isPlaying ? "TRANSMITTING..." : "READY TO TRANSMIT"}
                     </p>
                     <p className="font-mono text-xs text-amber-300">
                       {formatTime(audioCurrentTime)} / {formatTime(audioDuration)}
