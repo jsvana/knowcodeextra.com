@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 mod admin;
 mod certificate;
+mod qrz;
 
 // ============================================================================
 // Configuration

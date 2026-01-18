@@ -17,3 +17,4 @@ sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono", "uuid
 dotenvy = "0.15"
 config = "0.14"
 base64 = "0.22.1"
+reqwest = { version = "0.13.1", features = ["rustls-native-certs"] }
