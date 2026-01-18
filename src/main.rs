@@ -1,6 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
+    middleware,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -664,6 +665,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // Admin API routes (protected by JWT)
+    let admin_api = Router::new()
+        .route("/stats", get(admin::get_admin_stats))
+        .route("/queue", get(admin::get_queue))
+        .route("/queue/:callsign/history", get(admin::get_callsign_history))
+        .route("/queue/:id/approve", post(admin::approve_attempt_json))
+        .route("/queue/:id/reject", post(admin::reject_attempt_json))
+        .route("/approved", get(admin::get_approved_list))
+        .route("/approved/mark-reached-out", post(admin::mark_reached_out_json))
+        .route("/search", get(admin::search_attempts))
+        .route("/settings", get(admin::get_settings))
+        .layer(middleware::from_fn_with_state(state.clone(), jwt::require_admin_auth));
+
     // Build router
     let app = Router::new()
         .route("/health", get(health))
@@ -673,11 +687,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
         .route("/api/certificate/:attempt_id", get(certificate::get_certificate_svg))
-        .route("/admin/queue", get(admin::admin_queue))
-        .route("/admin/queue/:id/approve", post(admin::approve_attempt))
-        .route("/admin/queue/:id/reject", post(admin::reject_attempt))
-        .route("/admin/approved", get(admin::approved_list))
-        .route("/admin/approved/mark-reached-out", post(admin::mark_reached_out))
+        .route("/api/admin/login", post(jwt::login))
+        .nest("/api/admin", admin_api)
         .fallback_service(
             ServeDir::new(&config.static_dir)
                 .not_found_service(ServeFile::new(format!("{}/index.html", config.static_dir))),
