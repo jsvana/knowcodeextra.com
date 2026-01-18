@@ -208,6 +208,7 @@ pub struct AppState {
     pub db: SqlitePool,
     pub admin_username: String,
     pub admin_password: String,
+    pub qrz_client: Option<qrz::QrzClient>,
 }
 
 // ============================================================================
@@ -606,10 +607,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     setup_database(&pool).await?;
     tracing::info!("Database setup complete");
 
+    let qrz_client = qrz::create_client_from_env();
+    if qrz_client.is_some() {
+        tracing::info!("QRZ API client configured");
+    } else {
+        tracing::warn!("QRZ credentials not set, email lookup disabled");
+    }
+
     let state = Arc::new(AppState {
         db: pool,
         admin_username: config.admin_username.clone(),
         admin_password: config.admin_password.clone(),
+        qrz_client,
     });
 
     // CORS configuration
