@@ -104,6 +104,51 @@ const TelegraphKey = ({ className = "" }) => (
   </svg>
 );
 
+// Confirmation Modal component
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Yes", cancelText = "Cancel" }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+
+      {/* Modal */}
+      <div className="relative bg-amber-50 border-4 border-amber-800 shadow-2xl max-w-md w-full p-8">
+        {/* Corner ornaments */}
+        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-600" />
+        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-600" />
+        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-600" />
+        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-600" />
+
+        <h2 className="font-serif text-2xl font-bold text-amber-900 mb-4 text-center"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          {title}
+        </h2>
+
+        <p className="font-serif text-amber-800 text-center mb-8 whitespace-pre-line">
+          {message}
+        </p>
+
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={onCancel}
+            className="px-6 py-3 font-mono text-sm tracking-widest border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-6 py-3 font-mono text-sm tracking-widest bg-amber-900 text-amber-50 hover:bg-amber-800 transition-all"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // API Configuration - empty string means same-origin requests
 const API_BASE = "";
 
@@ -127,6 +172,7 @@ export default function KnowCodeExtra() {
   const [stats, setStats] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [blockedMessage, setBlockedMessage] = useState(null);
+  const [modal, setModal] = useState({ isOpen: false, type: null, testKey: null });
   const audioRef = useRef(null);
 
   // Fetch leaderboard data
@@ -193,12 +239,15 @@ export default function KnowCodeExtra() {
     setAnswers((prev) => ({ ...prev, [questionIndex]: answerIndex }));
   };
 
-  const handleAbandon = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to abandon this test?\n\nYou can only attempt the test once per day. If you abandon now, you won't be able to try again until tomorrow."
-    );
+  // Show abandon confirmation modal
+  const handleAbandon = () => {
+    setModal({ isOpen: true, type: "abandon", testKey: null });
+  };
 
-    if (confirmed && selectedTest) {
+  // Actually abandon the test
+  const confirmAbandon = async () => {
+    setModal({ isOpen: false, type: null, testKey: null });
+    if (selectedTest) {
       const test = testData[selectedTest];
       // Log a failed attempt
       await submitAttempt({
@@ -211,6 +260,27 @@ export default function KnowCodeExtra() {
       });
       setView("select");
     }
+  };
+
+  // Show start test confirmation modal
+  const handleStartClick = (testKey) => {
+    if (!userCall.trim()) {
+      alert("Please enter your callsign");
+      return;
+    }
+    setModal({ isOpen: true, type: "start", testKey });
+  };
+
+  // Actually start the test
+  const confirmStartTest = () => {
+    const testKey = modal.testKey;
+    setModal({ isOpen: false, type: null, testKey: null });
+    handleStartTest(testKey);
+  };
+
+  // Close modal without action
+  const closeModal = () => {
+    setModal({ isOpen: false, type: null, testKey: null });
   };
 
   const calculateResults = async () => {
@@ -484,11 +554,7 @@ export default function KnowCodeExtra() {
               {Object.entries(testData).map(([key, test]) => (
                 <button
                   key={key}
-                  onClick={() =>
-                    userCall.trim()
-                      ? handleStartTest(key)
-                      : alert("Please enter your callsign")
-                  }
+                  onClick={() => handleStartClick(key)}
                   disabled={!userCall.trim()}
                   className={`group bg-white border-2 border-amber-300 p-8 text-left
                            transition-all duration-300 relative overflow-hidden shadow-md
@@ -528,8 +594,15 @@ export default function KnowCodeExtra() {
               ))}
             </div>
 
+            {/* Rate limit note */}
+            <div className="mt-8 p-4 bg-red-50 border-2 border-red-200 shadow-sm">
+              <p className="font-mono text-red-800 text-sm text-center font-medium">
+                ⚠ You may only attempt this examination once per day
+              </p>
+            </div>
+
             {/* Historical note */}
-            <div className="mt-12 p-6 bg-amber-100 border-l-4 border-amber-600 shadow-sm">
+            <div className="mt-4 p-6 bg-amber-100 border-l-4 border-amber-600 shadow-sm">
               <p className="font-serif text-amber-800 text-sm leading-relaxed">
                 <strong>Historical Note:</strong> From 1936 until 2007, the FCC
                 required amateur radio operators to demonstrate Morse code
@@ -539,6 +612,17 @@ export default function KnowCodeExtra() {
             </div>
           </div>{" "}
           {/* End main content card */}
+
+          {/* Start confirmation modal */}
+          <ConfirmModal
+            isOpen={modal.isOpen && modal.type === "start"}
+            title="Begin Examination"
+            message={"Are you sure you want to start the test?\n\nYou may only attempt this examination once per day. Once you begin, abandoning the test will count as a failed attempt."}
+            confirmText="Start Test"
+            cancelText="Go Back"
+            onConfirm={confirmStartTest}
+            onCancel={closeModal}
+          />
         </div>
       </div>
     );
@@ -769,6 +853,17 @@ export default function KnowCodeExtra() {
             </div>
           </div>{" "}
           {/* End main content card */}
+
+          {/* Abandon confirmation modal */}
+          <ConfirmModal
+            isOpen={modal.isOpen && modal.type === "abandon"}
+            title="Abandon Test?"
+            message={"Are you sure you want to abandon this test?\n\nYou may only attempt the test once per day. If you abandon now, you won't be able to try again until tomorrow."}
+            confirmText="Abandon Test"
+            cancelText="Continue Test"
+            onConfirm={confirmAbandon}
+            onCancel={closeModal}
+          />
         </div>
       </div>
     );
