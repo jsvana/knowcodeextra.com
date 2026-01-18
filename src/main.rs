@@ -143,6 +143,10 @@ pub struct Attempt {
     pub validated_at: Option<DateTime<Utc>>,
     #[sqlx(default)]
     pub admin_note: Option<String>,
+    #[sqlx(default)]
+    pub email: Option<String>,
+    #[sqlx(default)]
+    pub reached_out: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,6 +264,16 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .ok();
 
     sqlx::query("ALTER TABLE attempts ADD COLUMN admin_note TEXT")
+        .execute(pool)
+        .await
+        .ok();
+
+    sqlx::query("ALTER TABLE attempts ADD COLUMN email TEXT")
+        .execute(pool)
+        .await
+        .ok();
+
+    sqlx::query("ALTER TABLE attempts ADD COLUMN reached_out INTEGER DEFAULT 0")
         .execute(pool)
         .await
         .ok();
