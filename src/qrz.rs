@@ -27,10 +27,16 @@ impl QrzClient {
             self.username, self.password
         );
 
-        let response = self.http.get(&url).send().await
+        let response = self
+            .http
+            .get(&url)
+            .send()
+            .await
             .map_err(|e| format!("QRZ login request failed: {}", e))?;
 
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| format!("QRZ login response read failed: {}", e))?;
 
         Self::extract_session_key(&text)
@@ -88,10 +94,16 @@ impl QrzClient {
             session_key, callsign
         );
 
-        let response = self.http.get(&url).send().await
+        let response = self
+            .http
+            .get(&url)
+            .send()
+            .await
             .map_err(|e| format!("QRZ lookup request failed: {}", e))?;
 
-        let text = response.text().await
+        let text = response
+            .text()
+            .await
             .map_err(|e| format!("QRZ lookup response read failed: {}", e))?;
 
         if text.contains("Session Timeout") || text.contains("Invalid session key") {

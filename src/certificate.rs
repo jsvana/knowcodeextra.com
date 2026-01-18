@@ -4,7 +4,7 @@
 // Add to Cargo.toml:
 //   [dependencies]
 //   # ... existing deps ...
-//   
+//
 // Add route in main.rs:
 //   mod certificate;
 //   .route("/api/certificate/:attempt_id", get(certificate::get_certificate_svg))
@@ -174,7 +174,7 @@ pub async fn get_certificate_svg(
     let attempt: Option<crate::Attempt> = sqlx::query_as(
         "SELECT id, callsign, test_speed, questions_correct, copy_chars, passed, created_at,
                 validation_status, certificate_number, validated_at, admin_note
-         FROM attempts WHERE id = ? AND passed = true AND validation_status = 'approved'"
+         FROM attempts WHERE id = ? AND passed = true AND validation_status = 'approved'",
     )
     .bind(&attempt_id)
     .fetch_optional(&state.db)
@@ -183,34 +183,29 @@ pub async fn get_certificate_svg(
 
     let attempt = attempt.ok_or((
         StatusCode::NOT_FOUND,
-        "Certificate not available. Attempt may be pending approval or not passed.".to_string()
+        "Certificate not available. Attempt may be pending approval or not passed.".to_string(),
     ))?;
 
     // Use the assigned certificate number from database
     let cert_no = match attempt.certificate_number {
         Some(num) => format!("#{}", num),
-        None => return Err((
-            StatusCode::NOT_FOUND,
-            "Certificate number not yet assigned".to_string()
-        )),
+        None => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                "Certificate number not yet assigned".to_string(),
+            ))
+        }
     };
 
     // Format date
     let date = attempt.created_at.format("%B %d, %Y").to_string();
 
     // Generate SVG
-    let cert_data = CertificateData::from_attempt(
-        &attempt.callsign,
-        &cert_no,
-        &date,
-    );
+    let cert_data = CertificateData::from_attempt(&attempt.callsign, &cert_no, &date);
 
     let svg = cert_data.to_svg();
 
-    Ok((
-        [(header::CONTENT_TYPE, "image/svg+xml")],
-        svg
-    ))
+    Ok(([(header::CONTENT_TYPE, "image/svg+xml")], svg))
 }
 
 #[cfg(test)]

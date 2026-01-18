@@ -105,7 +105,15 @@ const TelegraphKey = ({ className = "" }) => (
 );
 
 // Confirmation Modal component
-const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Yes", cancelText = "Cancel" }) => {
+const ConfirmModal = ({
+  isOpen,
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  confirmText = "Yes",
+  cancelText = "Cancel",
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -121,8 +129,10 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
         <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-600" />
         <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-600" />
 
-        <h2 className="font-serif text-2xl font-bold text-amber-900 mb-4 text-center"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <h2
+          className="font-serif text-2xl font-bold text-amber-900 mb-4 text-center"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
           {title}
         </h2>
 
@@ -172,7 +182,11 @@ export default function KnowCodeExtra() {
   const [stats, setStats] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [blockedMessage, setBlockedMessage] = useState(null);
-  const [modal, setModal] = useState({ isOpen: false, type: null, testKey: null });
+  const [modal, setModal] = useState({
+    isOpen: false,
+    type: null,
+    testKey: null,
+  });
   const audioRef = useRef(null);
 
   // Fetch leaderboard data
@@ -343,9 +357,11 @@ export default function KnowCodeExtra() {
 
   // Get current audio segment based on playback time
   const getCurrentSegment = (currentTime) => {
-    return audioSegments.find(
-      (seg) => currentTime >= seg.start && currentTime < seg.end
-    ) || audioSegments[0];
+    return (
+      audioSegments.find(
+        (seg) => currentTime >= seg.start && currentTime < seg.end,
+      ) || audioSegments[0]
+    );
   };
 
   // Home Page
@@ -606,18 +622,19 @@ export default function KnowCodeExtra() {
               <p className="font-serif text-amber-800 text-sm leading-relaxed">
                 <strong>Historical Note:</strong> From 1936 until 2007, the FCC
                 required amateur radio operators to demonstrate Morse code
-                proficiency. The 20 WPM test was required for the Amateur
-                Extra class license.
+                proficiency. The 20 WPM test was required for the Amateur Extra
+                class license.
               </p>
             </div>
           </div>{" "}
           {/* End main content card */}
-
           {/* Start confirmation modal */}
           <ConfirmModal
             isOpen={modal.isOpen && modal.type === "start"}
             title="Begin Examination"
-            message={"Are you sure you want to start the test?\n\nYou may only attempt this examination once per day. Once you begin, abandoning the test will count as a failed attempt."}
+            message={
+              "Are you sure you want to start the test?\n\nYou may only attempt this examination once per day. Once you begin, abandoning the test will count as a failed attempt."
+            }
             confirmText="Start Test"
             cancelText="Go Back"
             onConfirm={confirmStartTest}
@@ -703,9 +720,11 @@ export default function KnowCodeExtra() {
                   }}
                   disabled={audioPlayed}
                   className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg text-2xl font-bold transition-colors
-                          ${audioPlayed
-                            ? "bg-amber-800 text-amber-500 cursor-not-allowed"
-                            : "bg-amber-100 text-amber-900 hover:bg-white"}`}
+                          ${
+                            audioPlayed
+                              ? "bg-amber-800 text-amber-500 cursor-not-allowed"
+                              : "bg-amber-100 text-amber-900 hover:bg-white"
+                          }`}
                 >
                   {audioPlayed ? "✓" : isPlaying ? "❚❚" : "▶"}
                 </button>
@@ -715,7 +734,8 @@ export default function KnowCodeExtra() {
                   <div className="flex h-3 rounded-full overflow-hidden mb-1">
                     {audioSegments.map((seg, i) => {
                       const totalDuration = audioDuration || 531; // fallback to expected duration
-                      const segEnd = seg.end === Infinity ? totalDuration : seg.end;
+                      const segEnd =
+                        seg.end === Infinity ? totalDuration : seg.end;
                       const segDuration = segEnd - seg.start;
                       const widthPercent = (segDuration / totalDuration) * 100;
                       const currentSeg = getCurrentSegment(audioCurrentTime);
@@ -733,7 +753,7 @@ export default function KnowCodeExtra() {
                             <div
                               className="absolute top-0 left-0 h-full bg-white/30"
                               style={{
-                                width: `${((audioCurrentTime - seg.start) / segDuration) * 100}%`
+                                width: `${((audioCurrentTime - seg.start) / segDuration) * 100}%`,
                               }}
                             />
                           )}
@@ -746,7 +766,8 @@ export default function KnowCodeExtra() {
                   <div className="flex mb-2">
                     {audioSegments.map((seg) => {
                       const totalDuration = audioDuration || 531;
-                      const segEnd = seg.end === Infinity ? totalDuration : seg.end;
+                      const segEnd =
+                        seg.end === Infinity ? totalDuration : seg.end;
                       const segDuration = segEnd - seg.start;
                       const widthPercent = (segDuration / totalDuration) * 100;
                       const currentSeg = getCurrentSegment(audioCurrentTime);
@@ -766,10 +787,15 @@ export default function KnowCodeExtra() {
 
                   <div className="flex justify-between items-center">
                     <p className="font-mono text-xs text-amber-300">
-                      {audioPlayed ? "TRANSMISSION COMPLETE" : isPlaying ? "TRANSMITTING..." : "READY TO TRANSMIT"}
+                      {audioPlayed
+                        ? "TRANSMISSION COMPLETE"
+                        : isPlaying
+                          ? "TRANSMITTING..."
+                          : "READY TO TRANSMIT"}
                     </p>
                     <p className="font-mono text-xs text-amber-300">
-                      {formatTime(audioCurrentTime)} / {formatTime(audioDuration)}
+                      {formatTime(audioCurrentTime)} /{" "}
+                      {formatTime(audioDuration)}
                     </p>
                   </div>
                 </div>
@@ -853,12 +879,13 @@ export default function KnowCodeExtra() {
             </div>
           </div>{" "}
           {/* End main content card */}
-
           {/* Abandon confirmation modal */}
           <ConfirmModal
             isOpen={modal.isOpen && modal.type === "abandon"}
             title="Abandon Test?"
-            message={"Are you sure you want to abandon this test?\n\nYou may only attempt the test once per day. If you abandon now, you won't be able to try again until tomorrow."}
+            message={
+              "Are you sure you want to abandon this test?\n\nYou may only attempt the test once per day. If you abandon now, you won't be able to try again until tomorrow."
+            }
             confirmText="Abandon Test"
             cancelText="Continue Test"
             onConfirm={confirmAbandon}
@@ -940,8 +967,9 @@ export default function KnowCodeExtra() {
                     VERIFICATION PENDING
                   </h3>
                   <p className="font-serif text-amber-800">
-                    Congratulations! Your result has been submitted for verification.
-                    Once approved, you'll be able to view and download your official certificate.
+                    Congratulations! Your result has been submitted for
+                    verification. Once approved, you'll be able to view and
+                    download your official certificate.
                   </p>
                 </div>
               )}
@@ -1313,7 +1341,16 @@ function AdminAuthProvider({ children }) {
   };
 
   return (
-    <AdminAuthContext.Provider value={{ token, login, logout, adminFetch, isLoading, isAuthenticated: !!token }}>
+    <AdminAuthContext.Provider
+      value={{
+        token,
+        login,
+        logout,
+        adminFetch,
+        isLoading,
+        isAuthenticated: !!token,
+      }}
+    >
       {children}
     </AdminAuthContext.Provider>
   );
@@ -1354,7 +1391,9 @@ function AdminLogin() {
           >
             Admin Portal
           </h1>
-          <p className="font-mono text-xs text-amber-600 mt-2">KNOW CODE EXTRA</p>
+          <p className="font-mono text-xs text-amber-600 mt-2">
+            KNOW CODE EXTRA
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -1403,7 +1442,10 @@ function AdminLogin() {
         </form>
 
         <div className="mt-8 text-center">
-          <a href="/" className="font-mono text-sm text-amber-600 hover:text-amber-800">
+          <a
+            href="/"
+            className="font-mono text-sm text-amber-600 hover:text-amber-800"
+          >
             &larr; Return to main site
           </a>
         </div>
@@ -1422,7 +1464,9 @@ function Toast({ message, type = "success", onClose }) {
   const bgColor = type === "success" ? "bg-green-600" : "bg-red-600";
 
   return (
-    <div className={`fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 shadow-lg font-mono text-sm z-50`}>
+    <div
+      className={`fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 shadow-lg font-mono text-sm z-50`}
+    >
       {message}
     </div>
   );
@@ -1452,14 +1496,18 @@ function AdminLayout({ children, currentPage, pendingCount = 0 }) {
       </button>
 
       {/* Sidebar */}
-      <div className={`
+      <div
+        className={`
         fixed md:static inset-y-0 left-0 z-40
         w-64 bg-amber-900 text-amber-50 transform transition-transform
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-      `}>
+      `}
+      >
         <div className="p-6 border-b border-amber-800">
           <h1 className="font-serif text-xl font-bold">Admin Portal</h1>
-          <p className="font-mono text-xs text-amber-400 mt-1">KNOW CODE EXTRA</p>
+          <p className="font-mono text-xs text-amber-400 mt-1">
+            KNOW CODE EXTRA
+          </p>
         </div>
 
         <nav className="p-4 space-y-2">
@@ -1470,9 +1518,10 @@ function AdminLayout({ children, currentPage, pendingCount = 0 }) {
               onClick={() => setSidebarOpen(false)}
               className={`
                 flex items-center gap-3 px-4 py-3 font-mono text-sm transition-colors
-                ${currentPage === item.id
-                  ? "bg-amber-800 text-amber-50"
-                  : "text-amber-300 hover:bg-amber-800 hover:text-amber-50"
+                ${
+                  currentPage === item.id
+                    ? "bg-amber-800 text-amber-50"
+                    : "text-amber-300 hover:bg-amber-800 hover:text-amber-50"
                 }
               `}
             >
@@ -1504,9 +1553,7 @@ function AdminLayout({ children, currentPage, pendingCount = 0 }) {
             {currentPage}
           </h2>
         </header>
-        <main className="p-6">
-          {children}
-        </main>
+        <main className="p-6">{children}</main>
       </div>
 
       {/* Overlay for mobile */}
@@ -1571,7 +1618,11 @@ function AdminDashboard({ onNavigate }) {
   }
 
   const statCards = [
-    { label: "Pending", value: stats.pending_count, highlight: stats.pending_count > 0 },
+    {
+      label: "Pending",
+      value: stats.pending_count,
+      highlight: stats.pending_count > 0,
+    },
     { label: "Approved Today", value: stats.approved_today },
     { label: "Total Certificates", value: stats.total_certificates },
     { label: "Rejections", value: stats.rejected_count },
@@ -1584,11 +1635,17 @@ function AdminDashboard({ onNavigate }) {
           <div
             key={card.label}
             className={`bg-white border-2 p-6 shadow-sm ${
-              card.highlight ? "border-amber-500 bg-amber-50" : "border-amber-300"
+              card.highlight
+                ? "border-amber-500 bg-amber-50"
+                : "border-amber-300"
             }`}
           >
-            <p className="font-mono text-xs text-amber-600 mb-1">{card.label.toUpperCase()}</p>
-            <p className="font-serif text-3xl font-bold text-amber-900">{card.value}</p>
+            <p className="font-mono text-xs text-amber-600 mb-1">
+              {card.label.toUpperCase()}
+            </p>
+            <p className="font-serif text-3xl font-bold text-amber-900">
+              {card.value}
+            </p>
           </div>
         ))}
       </div>
@@ -1596,7 +1653,8 @@ function AdminDashboard({ onNavigate }) {
       {stats.pending_count > 0 && (
         <div className="bg-amber-100 border-2 border-amber-400 p-4 flex items-center justify-between">
           <p className="font-serif text-amber-800">
-            You have <strong>{stats.pending_count}</strong> attempt(s) awaiting review
+            You have <strong>{stats.pending_count}</strong> attempt(s) awaiting
+            review
           </p>
           <button
             onClick={() => onNavigate("queue")}
@@ -1618,14 +1676,21 @@ function AdminDashboard({ onNavigate }) {
             </p>
           ) : (
             stats.recent_activity.map((item) => (
-              <div key={item.id} className="px-6 py-4 flex items-center justify-between">
+              <div
+                key={item.id}
+                className="px-6 py-4 flex items-center justify-between"
+              >
                 <div>
-                  <span className="font-mono text-amber-900 font-bold">{item.callsign}</span>
-                  <span className={`ml-2 text-xs px-2 py-0.5 font-mono ${
-                    item.action === "approved"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}>
+                  <span className="font-mono text-amber-900 font-bold">
+                    {item.callsign}
+                  </span>
+                  <span
+                    className={`ml-2 text-xs px-2 py-0.5 font-mono ${
+                      item.action === "approved"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
                     {item.action}
                   </span>
                 </div>
@@ -1649,7 +1714,10 @@ function AdminQueue({ onPendingCountChange }) {
   const [expandedCallsign, setExpandedCallsign] = useState(null);
   const [history, setHistory] = useState({});
   const [toast, setToast] = useState(null);
-  const [rejectModal, setRejectModal] = useState({ isOpen: false, attemptId: null });
+  const [rejectModal, setRejectModal] = useState({
+    isOpen: false,
+    attemptId: null,
+  });
   const [rejectNote, setRejectNote] = useState("");
 
   const fetchQueue = async () => {
@@ -1669,7 +1737,9 @@ function AdminQueue({ onPendingCountChange }) {
   const fetchHistory = async (callsign) => {
     if (history[callsign]) return;
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/queue/${callsign}/history`);
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/queue/${callsign}/history`,
+      );
       if (!response.ok) throw new Error("Failed to fetch history");
       const data = await response.json();
       setHistory((prev) => ({ ...prev, [callsign]: data }));
@@ -1684,16 +1754,26 @@ function AdminQueue({ onPendingCountChange }) {
     setQueue((prev) => prev.filter((q) => q.id !== attemptId));
 
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/queue/${attemptId}/approve`, {
-        method: "POST",
-      });
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/queue/${attemptId}/approve`,
+        {
+          method: "POST",
+        },
+      );
       if (!response.ok) throw new Error("Failed to approve");
       const data = await response.json();
-      setToast({ message: `Approved - Certificate #${data.certificate_number}`, type: "success" });
+      setToast({
+        message: `Approved - Certificate #${data.certificate_number}`,
+        type: "success",
+      });
       onPendingCountChange?.(queue.length - 1);
     } catch (err) {
       // Rollback
-      setQueue((prev) => [...prev, item].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+      setQueue((prev) =>
+        [...prev, item].sort(
+          (a, b) => new Date(a.created_at) - new Date(b.created_at),
+        ),
+      );
       setToast({ message: err.message, type: "error" });
     }
   };
@@ -1705,16 +1785,23 @@ function AdminQueue({ onPendingCountChange }) {
     setRejectModal({ isOpen: false, attemptId: null });
 
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/queue/${attemptId}/reject`, {
-        method: "POST",
-        body: JSON.stringify({ note: rejectNote || null }),
-      });
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/queue/${attemptId}/reject`,
+        {
+          method: "POST",
+          body: JSON.stringify({ note: rejectNote || null }),
+        },
+      );
       if (!response.ok) throw new Error("Failed to reject");
       setToast({ message: "Rejected", type: "success" });
       setRejectNote("");
       onPendingCountChange?.(queue.length - 1);
     } catch (err) {
-      setQueue((prev) => [...prev, item].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+      setQueue((prev) =>
+        [...prev, item].sort(
+          (a, b) => new Date(a.created_at) - new Date(b.created_at),
+        ),
+      );
       setToast({ message: err.message, type: "error" });
     }
   };
@@ -1753,17 +1840,29 @@ function AdminQueue({ onPendingCountChange }) {
 
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       <div className="bg-white border-2 border-amber-300 shadow-sm">
         <div className="bg-amber-900 text-amber-50 px-6 py-3">
-          <h3 className="font-mono text-sm tracking-widest">PENDING VALIDATION</h3>
+          <h3 className="font-mono text-sm tracking-widest">
+            PENDING VALIDATION
+          </h3>
         </div>
 
         {queue.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="font-serif text-xl text-amber-800 mb-2">No pending attempts</p>
-            <p className="font-mono text-sm text-amber-600">You're all caught up!</p>
+            <p className="font-serif text-xl text-amber-800 mb-2">
+              No pending attempts
+            </p>
+            <p className="font-mono text-sm text-amber-600">
+              You're all caught up!
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-amber-200">
@@ -1794,7 +1893,9 @@ function AdminQueue({ onPendingCountChange }) {
                       Approve
                     </button>
                     <button
-                      onClick={() => setRejectModal({ isOpen: true, attemptId: item.id })}
+                      onClick={() =>
+                        setRejectModal({ isOpen: true, attemptId: item.id })
+                      }
                       className="bg-red-600 text-white px-4 py-2 font-mono text-sm hover:bg-red-700"
                     >
                       Reject
@@ -1803,35 +1904,44 @@ function AdminQueue({ onPendingCountChange }) {
                 </div>
 
                 {/* History panel */}
-                {expandedCallsign === item.callsign && history[item.callsign] && (
-                  <div className="bg-amber-50 px-6 py-4 border-t border-amber-200">
-                    <h4 className="font-mono text-xs text-amber-700 mb-2">HISTORY FOR {item.callsign}</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full font-mono text-sm">
-                        <thead>
-                          <tr className="text-amber-600 text-left">
-                            <th className="pr-4">Date</th>
-                            <th className="pr-4">Score</th>
-                            <th className="pr-4">Copy</th>
-                            <th className="pr-4">Passed</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {history[item.callsign].map((h) => (
-                            <tr key={h.id} className="text-amber-800">
-                              <td className="pr-4 py-1">{new Date(h.created_at).toLocaleDateString()}</td>
-                              <td className="pr-4">{h.questions_correct}/10</td>
-                              <td className="pr-4">{h.copy_chars}</td>
-                              <td className="pr-4">{h.passed ? "Yes" : "No"}</td>
-                              <td>{h.validation_status || "—"}</td>
+                {expandedCallsign === item.callsign &&
+                  history[item.callsign] && (
+                    <div className="bg-amber-50 px-6 py-4 border-t border-amber-200">
+                      <h4 className="font-mono text-xs text-amber-700 mb-2">
+                        HISTORY FOR {item.callsign}
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full font-mono text-sm">
+                          <thead>
+                            <tr className="text-amber-600 text-left">
+                              <th className="pr-4">Date</th>
+                              <th className="pr-4">Score</th>
+                              <th className="pr-4">Copy</th>
+                              <th className="pr-4">Passed</th>
+                              <th>Status</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {history[item.callsign].map((h) => (
+                              <tr key={h.id} className="text-amber-800">
+                                <td className="pr-4 py-1">
+                                  {new Date(h.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="pr-4">
+                                  {h.questions_correct}/10
+                                </td>
+                                <td className="pr-4">{h.copy_chars}</td>
+                                <td className="pr-4">
+                                  {h.passed ? "Yes" : "No"}
+                                </td>
+                                <td>{h.validation_status || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             ))}
           </div>
@@ -1841,11 +1951,18 @@ function AdminQueue({ onPendingCountChange }) {
       {/* Reject Modal */}
       {rejectModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setRejectModal({ isOpen: false, attemptId: null })} />
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setRejectModal({ isOpen: false, attemptId: null })}
+          />
           <div className="relative bg-amber-50 border-4 border-amber-800 shadow-2xl max-w-md w-full p-8">
-            <h2 className="font-serif text-2xl font-bold text-amber-900 mb-4">Reject Attempt</h2>
+            <h2 className="font-serif text-2xl font-bold text-amber-900 mb-4">
+              Reject Attempt
+            </h2>
             <div className="mb-4">
-              <label className="font-mono text-xs text-amber-700 block mb-1">NOTE (OPTIONAL)</label>
+              <label className="font-mono text-xs text-amber-700 block mb-1">
+                NOTE (OPTIONAL)
+              </label>
               <textarea
                 value={rejectNote}
                 onChange={(e) => setRejectNote(e.target.value)}
@@ -1855,7 +1972,9 @@ function AdminQueue({ onPendingCountChange }) {
             </div>
             <div className="flex gap-4 justify-end">
               <button
-                onClick={() => setRejectModal({ isOpen: false, attemptId: null })}
+                onClick={() =>
+                  setRejectModal({ isOpen: false, attemptId: null })
+                }
                 className="px-4 py-2 font-mono text-sm border-2 border-amber-300 text-amber-800 hover:border-amber-500"
               >
                 Cancel
@@ -1877,7 +1996,12 @@ function AdminQueue({ onPendingCountChange }) {
 // Admin Approved Page
 function AdminApproved() {
   const { adminFetch } = useAdminAuth();
-  const [data, setData] = useState({ items: [], total: 0, page: 1, per_page: 25 });
+  const [data, setData] = useState({
+    items: [],
+    total: 0,
+    page: 1,
+    per_page: 25,
+  });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState(null); // null = all, false = not reached out, true = reached out
   const [selected, setSelected] = useState(new Set());
@@ -1908,19 +2032,25 @@ function AdminApproved() {
     setData((prev) => ({
       ...prev,
       items: prev.items.map((item) =>
-        ids.includes(item.id) ? { ...item, reached_out: true } : item
+        ids.includes(item.id) ? { ...item, reached_out: true } : item,
       ),
     }));
     setSelected(new Set());
 
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/approved/mark-reached-out`, {
-        method: "POST",
-        body: JSON.stringify({ ids }),
-      });
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/approved/mark-reached-out`,
+        {
+          method: "POST",
+          body: JSON.stringify({ ids }),
+        },
+      );
       if (!response.ok) throw new Error("Failed to mark");
       const result = await response.json();
-      setToast({ message: `Marked ${result.count} as reached out`, type: "success" });
+      setToast({
+        message: `Marked ${result.count} as reached out`,
+        type: "success",
+      });
     } catch (err) {
       fetchApproved(data.page); // Rollback by refetching
       setToast({ message: err.message, type: "error" });
@@ -1957,7 +2087,13 @@ function AdminApproved() {
 
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {/* Actions bar */}
       <div className="bg-white border-2 border-amber-300 p-4 mb-4 flex items-center justify-between">
@@ -1969,13 +2105,19 @@ function AdminApproved() {
           >
             Mark Selected as Reached Out
           </button>
-          <span className="font-mono text-sm text-amber-600">{selected.size} selected</span>
+          <span className="font-mono text-sm text-amber-600">
+            {selected.size} selected
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-amber-600">Filter:</span>
           <select
             value={filter === null ? "all" : filter.toString()}
-            onChange={(e) => setFilter(e.target.value === "all" ? null : e.target.value === "true")}
+            onChange={(e) =>
+              setFilter(
+                e.target.value === "all" ? null : e.target.value === "true",
+              )
+            }
             className="border-2 border-amber-300 px-3 py-1 font-mono text-sm focus:outline-none focus:border-amber-500"
           >
             <option value="all">All</option>
@@ -1994,27 +2136,46 @@ function AdminApproved() {
                 <th className="px-4 py-3 text-left">
                   <input
                     type="checkbox"
-                    checked={data.items.length > 0 && selected.size === data.items.length}
+                    checked={
+                      data.items.length > 0 &&
+                      selected.size === data.items.length
+                    }
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">CALLSIGN</th>
-                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">EMAIL</th>
-                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">CERT #</th>
-                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">APPROVED</th>
-                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">REACHED OUT</th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
+                  CALLSIGN
+                </th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
+                  EMAIL
+                </th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
+                  CERT #
+                </th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
+                  APPROVED
+                </th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
+                  REACHED OUT
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-amber-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center font-mono text-amber-600">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center font-mono text-amber-600"
+                  >
                     Loading...
                   </td>
                 </tr>
               ) : data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center font-serif italic text-amber-600">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center font-serif italic text-amber-600"
+                  >
                     No approved attempts
                   </td>
                 </tr>
@@ -2031,10 +2192,14 @@ function AdminApproved() {
                         onChange={() => toggleSelect(item.id)}
                       />
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold text-amber-900">{item.callsign}</td>
+                    <td className="px-4 py-3 font-mono font-bold text-amber-900">
+                      {item.callsign}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm text-amber-700">{item.email || "Not found"}</span>
+                        <span className="font-mono text-sm text-amber-700">
+                          {item.email || "Not found"}
+                        </span>
                         {item.email && (
                           <button
                             onClick={() => copyEmail(item.email)}
@@ -2057,14 +2222,18 @@ function AdminApproved() {
                       </a>
                     </td>
                     <td className="px-4 py-3 font-mono text-sm text-amber-700">
-                      {item.validated_at ? new Date(item.validated_at).toLocaleDateString() : "—"}
+                      {item.validated_at
+                        ? new Date(item.validated_at).toLocaleDateString()
+                        : "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 font-mono ${
-                        item.reached_out
-                          ? "bg-green-100 text-green-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-1 font-mono ${
+                          item.reached_out
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
                         {item.reached_out ? "Yes" : "No"}
                       </span>
                     </td>
@@ -2079,7 +2248,8 @@ function AdminApproved() {
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-amber-200 flex items-center justify-between">
             <span className="font-mono text-sm text-amber-600">
-              Showing {((data.page - 1) * data.per_page) + 1}-{Math.min(data.page * data.per_page, data.total)} of {data.total}
+              Showing {(data.page - 1) * data.per_page + 1}-
+              {Math.min(data.page * data.per_page, data.total)} of {data.total}
             </span>
             <div className="flex gap-2">
               <button
@@ -2120,7 +2290,9 @@ function AdminSearch() {
     setLoading(true);
     setSearched(true);
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/search?q=${encodeURIComponent(query)}`);
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/search?q=${encodeURIComponent(query)}`,
+      );
       if (!response.ok) throw new Error("Search failed");
       const data = await response.json();
       setResults(data);
@@ -2133,12 +2305,18 @@ function AdminSearch() {
 
   const handleApprove = async (attemptId) => {
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/queue/${attemptId}/approve`, {
-        method: "POST",
-      });
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/queue/${attemptId}/approve`,
+        {
+          method: "POST",
+        },
+      );
       if (!response.ok) throw new Error("Failed to approve");
       const data = await response.json();
-      setToast({ message: `Approved - Certificate #${data.certificate_number}`, type: "success" });
+      setToast({
+        message: `Approved - Certificate #${data.certificate_number}`,
+        type: "success",
+      });
       // Refresh search results
       handleSearch({ preventDefault: () => {} });
     } catch (err) {
@@ -2148,10 +2326,13 @@ function AdminSearch() {
 
   const handleReject = async (attemptId) => {
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/queue/${attemptId}/reject`, {
-        method: "POST",
-        body: JSON.stringify({ note: null }),
-      });
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/queue/${attemptId}/reject`,
+        {
+          method: "POST",
+          body: JSON.stringify({ note: null }),
+        },
+      );
       if (!response.ok) throw new Error("Failed to reject");
       setToast({ message: "Rejected", type: "success" });
       handleSearch({ preventDefault: () => {} });
@@ -2169,10 +2350,19 @@ function AdminSearch() {
 
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="bg-white border-2 border-amber-300 p-6 mb-6">
+      <form
+        onSubmit={handleSearch}
+        className="bg-white border-2 border-amber-300 p-6 mb-6"
+      >
         <div className="flex gap-4">
           <input
             type="text"
@@ -2207,14 +2397,20 @@ function AdminSearch() {
 
           {results.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="font-serif text-amber-800 mb-2">No attempts found for "{query}"</p>
-              <p className="font-mono text-sm text-amber-600">Try a partial callsign or check spelling</p>
+              <p className="font-serif text-amber-800 mb-2">
+                No attempts found for "{query}"
+              </p>
+              <p className="font-mono text-sm text-amber-600">
+                Try a partial callsign or check spelling
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-amber-200">
               {Object.entries(grouped).map(([callsign, attempts]) => (
                 <div key={callsign} className="px-6 py-4">
-                  <h4 className="font-mono text-lg font-bold text-amber-900 mb-3">{callsign}</h4>
+                  <h4 className="font-mono text-lg font-bold text-amber-900 mb-3">
+                    {callsign}
+                  </h4>
                   <div className="overflow-x-auto">
                     <table className="w-full font-mono text-sm">
                       <thead>
@@ -2231,17 +2427,28 @@ function AdminSearch() {
                       <tbody>
                         {attempts.map((item) => (
                           <tr key={item.id} className="text-amber-800">
-                            <td className="pr-4 py-2">{new Date(item.created_at).toLocaleDateString()}</td>
-                            <td className="pr-4">{item.questions_correct}/10</td>
-                            <td className="pr-4">{item.copy_chars}</td>
-                            <td className="pr-4">{item.passed ? "Yes" : "No"}</td>
+                            <td className="pr-4 py-2">
+                              {new Date(item.created_at).toLocaleDateString()}
+                            </td>
                             <td className="pr-4">
-                              <span className={`text-xs px-2 py-0.5 ${
-                                item.validation_status === "approved" ? "bg-green-100 text-green-800" :
-                                item.validation_status === "rejected" ? "bg-red-100 text-red-800" :
-                                item.validation_status === "pending" ? "bg-amber-100 text-amber-800" :
-                                "bg-gray-100 text-gray-800"
-                              }`}>
+                              {item.questions_correct}/10
+                            </td>
+                            <td className="pr-4">{item.copy_chars}</td>
+                            <td className="pr-4">
+                              {item.passed ? "Yes" : "No"}
+                            </td>
+                            <td className="pr-4">
+                              <span
+                                className={`text-xs px-2 py-0.5 ${
+                                  item.validation_status === "approved"
+                                    ? "bg-green-100 text-green-800"
+                                    : item.validation_status === "rejected"
+                                      ? "bg-red-100 text-red-800"
+                                      : item.validation_status === "pending"
+                                        ? "bg-amber-100 text-amber-800"
+                                        : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
                                 {item.validation_status || "—"}
                               </span>
                             </td>
@@ -2255,7 +2462,9 @@ function AdminSearch() {
                                 >
                                   #{item.certificate_number}
                                 </a>
-                              ) : "—"}
+                              ) : (
+                                "—"
+                              )}
                             </td>
                             <td>
                               {item.validation_status === "pending" && (
@@ -2275,7 +2484,10 @@ function AdminSearch() {
                                 </div>
                               )}
                               {item.admin_note && (
-                                <span className="text-xs text-amber-600 ml-2" title={item.admin_note}>
+                                <span
+                                  className="text-xs text-amber-600 ml-2"
+                                  title={item.admin_note}
+                                >
                                   [note]
                                 </span>
                               )}
@@ -2325,27 +2537,42 @@ function AdminSettings() {
     );
   }
 
-  const configItems = settings ? [
-    { label: "Database", value: settings.database_url },
-    { label: "Listen Address", value: settings.listen_addr },
-    { label: "Static Directory", value: settings.static_dir },
-    { label: "Log Level", value: settings.log_level },
-    { label: "QRZ Integration", value: settings.qrz_enabled ? "Enabled" : "Disabled", status: settings.qrz_enabled },
-  ] : [];
+  const configItems = settings
+    ? [
+        { label: "Database", value: settings.database_url },
+        { label: "Listen Address", value: settings.listen_addr },
+        { label: "Static Directory", value: settings.static_dir },
+        { label: "Log Level", value: settings.log_level },
+        {
+          label: "QRZ Integration",
+          value: settings.qrz_enabled ? "Enabled" : "Disabled",
+          status: settings.qrz_enabled,
+        },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
       <div className="bg-white border-2 border-amber-300 shadow-sm">
         <div className="bg-amber-900 text-amber-50 px-6 py-3">
-          <h3 className="font-mono text-sm tracking-widest">CURRENT CONFIGURATION</h3>
+          <h3 className="font-mono text-sm tracking-widest">
+            CURRENT CONFIGURATION
+          </h3>
         </div>
         <div className="divide-y divide-amber-200">
           {configItems.map((item) => (
-            <div key={item.label} className="px-6 py-4 flex items-center justify-between">
-              <span className="font-mono text-sm text-amber-700">{item.label}</span>
+            <div
+              key={item.label}
+              className="px-6 py-4 flex items-center justify-between"
+            >
+              <span className="font-mono text-sm text-amber-700">
+                {item.label}
+              </span>
               <span className="font-mono text-sm text-amber-900">
                 {item.status !== undefined ? (
-                  <span className={`px-2 py-1 text-xs ${item.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                  <span
+                    className={`px-2 py-1 text-xs ${item.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                  >
                     {item.value}
                   </span>
                 ) : (
@@ -2358,8 +2585,9 @@ function AdminSettings() {
       </div>
       <div className="bg-amber-100 border-l-4 border-amber-600 p-4">
         <p className="font-serif text-amber-800 text-sm">
-          <strong>Note:</strong> Settings are configured via <code className="bg-amber-200 px-1">config.toml</code> or environment variables.
-          Changes require a server restart.
+          <strong>Note:</strong> Settings are configured via{" "}
+          <code className="bg-amber-200 px-1">config.toml</code> or environment
+          variables. Changes require a server restart.
         </p>
       </div>
     </div>
@@ -2377,7 +2605,11 @@ function AdminApp() {
       const hash = window.location.hash;
       if (hash.startsWith("#/admin/")) {
         const page = hash.replace("#/admin/", "");
-        if (["dashboard", "queue", "approved", "search", "settings"].includes(page)) {
+        if (
+          ["dashboard", "queue", "approved", "search", "settings"].includes(
+            page,
+          )
+        ) {
           setCurrentPage(page);
         }
       }
@@ -2398,12 +2630,23 @@ function AdminApp() {
 
   let content;
   switch (currentPage) {
-    case "dashboard": content = <AdminDashboard onNavigate={navigateTo} />; break;
-    case "queue": content = <AdminQueue onPendingCountChange={setPendingCount} />; break;
-    case "approved": content = <AdminApproved />; break;
-    case "search": content = <AdminSearch />; break;
-    case "settings": content = <AdminSettings />; break;
-    default: content = <AdminDashboard onNavigate={navigateTo} />;
+    case "dashboard":
+      content = <AdminDashboard onNavigate={navigateTo} />;
+      break;
+    case "queue":
+      content = <AdminQueue onPendingCountChange={setPendingCount} />;
+      break;
+    case "approved":
+      content = <AdminApproved />;
+      break;
+    case "search":
+      content = <AdminSearch />;
+      break;
+    case "settings":
+      content = <AdminSettings />;
+      break;
+    default:
+      content = <AdminDashboard onNavigate={navigateTo} />;
   }
 
   return (

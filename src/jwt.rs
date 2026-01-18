@@ -13,9 +13,9 @@ const TOKEN_EXPIRY_HOURS: i64 = 8;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,  // username
-    pub exp: usize,   // expiry timestamp
-    pub iat: usize,   // issued at
+    pub sub: String, // username
+    pub exp: usize,  // expiry timestamp
+    pub iat: usize,  // issued at
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,7 +78,11 @@ pub async fn require_admin_auth(
     let token = match auth_header {
         Some(h) if h.starts_with("Bearer ") => &h[7..],
         _ => {
-            return (StatusCode::UNAUTHORIZED, "Missing or invalid authorization header").into_response();
+            return (
+                StatusCode::UNAUTHORIZED,
+                "Missing or invalid authorization header",
+            )
+                .into_response();
         }
     };
 
