@@ -303,6 +303,22 @@ async fn create_attempt(
         return Err((StatusCode::BAD_REQUEST, "Callsign is required".to_string()));
     }
 
+    // Check if callsign already has an attempt today (rate limit: once per day)
+    let today_attempt: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM attempts WHERE callsign = ? AND date(created_at) = date('now') LIMIT 1"
+    )
+    .bind(&callsign)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if today_attempt.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "You can only attempt the test once per day. Practice more at morsestorytime.com and keyersjourney.com, and try again tomorrow!".to_string(),
+        ));
+    }
+
     // Check if callsign already has a pending or approved attempt
     let existing: Option<(String,)> = sqlx::query_as(
         "SELECT id FROM attempts WHERE callsign = ? AND validation_status IN ('pending', 'approved') LIMIT 1"
