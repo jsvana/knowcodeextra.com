@@ -41,6 +41,9 @@ pub struct Config {
 
     #[serde(default = "Config::default_admin_password")]
     pub admin_password: String,
+
+    #[serde(default = "Config::default_admin_jwt_secret")]
+    pub admin_jwt_secret: String,
 }
 
 impl Config {
@@ -68,6 +71,10 @@ impl Config {
         "changeme".to_string()
     }
 
+    fn default_admin_jwt_secret() -> String {
+        "change-this-secret-in-production".to_string()
+    }
+
     pub fn load() -> Result<Self, config::ConfigError> {
         let config_path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
 
@@ -79,6 +86,7 @@ impl Config {
             .set_default("log_level", Self::default_log_level())?
             .set_default("admin_username", Self::default_admin_username())?
             .set_default("admin_password", Self::default_admin_password())?
+            .set_default("admin_jwt_secret", Self::default_admin_jwt_secret())?
             // Layer on config file (optional)
             .add_source(config::File::with_name(&config_path).required(false))
             // Layer on environment variables (prefix KNOWCODE_)
@@ -212,6 +220,7 @@ pub struct AppState {
     pub db: SqlitePool,
     pub admin_username: String,
     pub admin_password: String,
+    pub admin_jwt_secret: String,
     pub qrz_client: Option<qrz::QrzClient>,
 }
 
@@ -644,6 +653,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db: pool,
         admin_username: config.admin_username.clone(),
         admin_password: config.admin_password.clone(),
+        admin_jwt_secret: config.admin_jwt_secret.clone(),
         qrz_client,
     });
 
