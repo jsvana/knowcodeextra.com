@@ -1255,6 +1255,78 @@ export default function KnowCodeExtra() {
   return null;
 }
 
+// ============================================================================
+// ADMIN PORTAL
+// ============================================================================
+
+// Admin Auth Context
+const AdminAuthContext = React.createContext(null);
+
+function AdminAuthProvider({ children }) {
+  const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const login = async (username, password) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Login failed");
+      }
+
+      const data = await response.json();
+      setToken(data.token);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setToken(null);
+  };
+
+  const adminFetch = async (url, options = {}) => {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status === 401) {
+      logout();
+      throw new Error("Session expired");
+    }
+
+    return response;
+  };
+
+  return (
+    <AdminAuthContext.Provider value={{ token, login, logout, adminFetch, isLoading, isAuthenticated: !!token }}>
+      {children}
+    </AdminAuthContext.Provider>
+  );
+}
+
+function useAdminAuth() {
+  const context = React.useContext(AdminAuthContext);
+  if (!context) {
+    throw new Error("useAdminAuth must be used within AdminAuthProvider");
+  }
+  return context;
+}
+
 // Mount the app
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(KnowCodeExtra));
