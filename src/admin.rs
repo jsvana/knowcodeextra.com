@@ -244,12 +244,42 @@ pub async fn approve_attempt(
     let next_cert = max_cert.0.unwrap_or(0) + 1;
     let now = chrono::Utc::now();
 
+    // Fetch email from QRZ if configured
+    let email: Option<String> = if let Some(ref qrz) = state.qrz_client {
+        // Get callsign for this attempt
+        let callsign: (String,) = sqlx::query_as(
+            "SELECT callsign FROM attempts WHERE id = ?"
+        )
+        .bind(&attempt_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        match qrz.lookup_email(&callsign.0).await {
+            Ok(email) => {
+                if email.is_some() {
+                    tracing::info!("Found email for {}", callsign.0);
+                } else {
+                    tracing::warn!("No email found for {}", callsign.0);
+                }
+                email
+            }
+            Err(e) => {
+                tracing::error!("QRZ lookup failed for {}: {}", callsign.0, e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let result = sqlx::query(
-        "UPDATE attempts SET validation_status = 'approved', certificate_number = ?, validated_at = ?
+        "UPDATE attempts SET validation_status = 'approved', certificate_number = ?, validated_at = ?, email = ?
          WHERE id = ? AND validation_status = 'pending'"
     )
     .bind(next_cert)
     .bind(now.to_rfc3339())
+    .bind(&email)
     .bind(&attempt_id)
     .execute(&mut *tx)
     .await
