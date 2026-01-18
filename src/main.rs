@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 mod admin;
 mod certificate;
+mod jwt;
 mod qrz;
 
 // ============================================================================
