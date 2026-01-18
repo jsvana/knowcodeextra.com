@@ -29,6 +29,9 @@ jobs:
     - name: Build release binary
       run: cargo build --release
 
+    - name: Install frontend dependencies
+      run: cd frontend && npm ci
+
     - name: Build frontend
       run: cd frontend && ./build.sh
 

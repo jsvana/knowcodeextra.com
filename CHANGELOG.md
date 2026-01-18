@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] - 2026-01-18
+
+### Fixed
+- Release workflow now installs frontend dependencies before building
+
 ## [0.2.0] - 2026-01-18
 
 ### Added
