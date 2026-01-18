@@ -18,3 +18,4 @@ dotenvy = "0.15"
 config = "0.14"
 base64 = "0.22.1"
 reqwest = { version = "0.13.1", features = ["rustls-native-certs"] }
+jsonwebtoken = "9"
