@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 
+// Audio segment definitions (times in seconds)
+const audioSegments = [
+  { name: "Intro", start: 0, end: 62, color: "bg-amber-600" },
+  { name: "Practice", start: 62, end: 126, color: "bg-amber-500" },
+  { name: "Instructions", start: 126, end: 221, color: "bg-amber-400" },
+  { name: "Test", start: 221, end: 531, color: "bg-green-600" },
+  { name: "Outro", start: 531, end: Infinity, color: "bg-amber-600" },
+];
+
 // Test data - 20 WPM Extra Class examination only
 const testData = {
   "20wpm": {
@@ -240,6 +249,13 @@ export default function KnowCodeExtra() {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Get current audio segment based on playback time
+  const getCurrentSegment = (currentTime) => {
+    return audioSegments.find(
+      (seg) => currentTime >= seg.start && currentTime < seg.end
+    ) || audioSegments[0];
   };
 
   // Home Page
@@ -591,13 +607,60 @@ export default function KnowCodeExtra() {
                 </button>
 
                 <div className="flex-1">
-                  <div className="h-3 bg-amber-950 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-400 to-amber-300 transition-all duration-100"
-                      style={{ width: `${audioProgress}%` }}
-                    />
+                  {/* Segment timeline */}
+                  <div className="flex h-3 rounded-full overflow-hidden mb-1">
+                    {audioSegments.map((seg, i) => {
+                      const totalDuration = audioDuration || 531; // fallback to expected duration
+                      const segEnd = seg.end === Infinity ? totalDuration : seg.end;
+                      const segDuration = segEnd - seg.start;
+                      const widthPercent = (segDuration / totalDuration) * 100;
+                      const currentSeg = getCurrentSegment(audioCurrentTime);
+                      const isCurrentSegment = currentSeg.name === seg.name;
+                      const isPastSegment = audioCurrentTime >= segEnd;
+
+                      return (
+                        <div
+                          key={seg.name}
+                          className={`relative ${seg.color} ${isCurrentSegment ? "opacity-100" : isPastSegment ? "opacity-70" : "opacity-40"} transition-opacity duration-300`}
+                          style={{ width: `${widthPercent}%` }}
+                          title={`${seg.name}: ${formatTime(seg.start)} - ${formatTime(segEnd)}`}
+                        >
+                          {isCurrentSegment && (
+                            <div
+                              className="absolute top-0 left-0 h-full bg-white/30"
+                              style={{
+                                width: `${((audioCurrentTime - seg.start) / segDuration) * 100}%`
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex justify-between items-center mt-2">
+
+                  {/* Segment labels */}
+                  <div className="flex mb-2">
+                    {audioSegments.map((seg) => {
+                      const totalDuration = audioDuration || 531;
+                      const segEnd = seg.end === Infinity ? totalDuration : seg.end;
+                      const segDuration = segEnd - seg.start;
+                      const widthPercent = (segDuration / totalDuration) * 100;
+                      const currentSeg = getCurrentSegment(audioCurrentTime);
+                      const isCurrentSegment = currentSeg.name === seg.name;
+
+                      return (
+                        <div
+                          key={seg.name}
+                          className={`font-mono text-[10px] text-center truncate transition-all duration-300 ${isCurrentSegment ? "text-amber-100 font-bold" : "text-amber-400"}`}
+                          style={{ width: `${widthPercent}%` }}
+                        >
+                          {seg.name}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-between items-center">
                     <p className="font-mono text-xs text-amber-300">
                       {audioPlayed ? "TRANSMISSION COMPLETE" : isPlaying ? "TRANSMITTING..." : "READY TO TRANSMIT"}
                     </p>
