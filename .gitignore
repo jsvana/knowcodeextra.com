@@ -27,3 +27,6 @@ Thumbs.db
 # Audio files (not included in repo - download separately)
 /static/audio/**/*.mp3
 /static/audio/**/*.pdf
+
+# Worktrees
+.worktrees/
