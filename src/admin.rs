@@ -64,6 +64,12 @@ pub struct RejectForm {
     note: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct BulkIdsForm {
+    #[serde(default)]
+    ids: Vec<String>,
+}
+
 #[derive(Debug, FromRow)]
 struct ApprovedAttempt {
     id: String,
@@ -452,4 +458,41 @@ pub async fn approved_list(
 </html>"#, rows);
 
     Ok(Html(html))
+}
+
+/// Mark selected attempts as reached out
+pub async fn mark_reached_out(
+    State(state): State<Arc<crate::AppState>>,
+    headers: axum::http::HeaderMap,
+    Form(form): Form<BulkIdsForm>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let auth = headers.get(header::AUTHORIZATION).and_then(|h| h.to_str().ok());
+
+    if !check_auth(auth, &state.admin_username, &state.admin_password) {
+        return Err((StatusCode::UNAUTHORIZED, "Unauthorized".to_string()));
+    }
+
+    if form.ids.is_empty() {
+        return Ok(Redirect::to("/admin/approved"));
+    }
+
+    // Build query with placeholders for each ID
+    let placeholders: Vec<&str> = form.ids.iter().map(|_| "?").collect();
+    let query = format!(
+        "UPDATE attempts SET reached_out = 1 WHERE id IN ({})",
+        placeholders.join(", ")
+    );
+
+    let mut q = sqlx::query(&query);
+    for id in &form.ids {
+        q = q.bind(id);
+    }
+
+    q.execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    tracing::info!("Marked {} attempts as reached out", form.ids.len());
+
+    Ok(Redirect::to("/admin/approved"))
 }
