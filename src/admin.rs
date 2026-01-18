@@ -197,9 +197,14 @@ pub async fn admin_queue(
         .modal {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }}
         .modal-content {{ background: white; margin: 10% auto; padding: 2rem; max-width: 400px; border: 2px solid #78350f; }}
         textarea {{ width: 100%; height: 100px; margin: 1rem 0; }}
+        nav {{ margin-bottom: 1rem; }}
+        nav a {{ color: #78350f; }}
     </style>
 </head>
 <body>
+    <nav>
+        <a href="/admin/approved">View Approved &rarr;</a>
+    </nav>
     <h1>Validation Queue</h1>
     {}
     <table>
