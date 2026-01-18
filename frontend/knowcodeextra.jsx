@@ -1874,6 +1874,236 @@ function AdminQueue({ onPendingCountChange }) {
   );
 }
 
+// Admin Approved Page
+function AdminApproved() {
+  const { adminFetch } = useAdminAuth();
+  const [data, setData] = useState({ items: [], total: 0, page: 1, per_page: 25 });
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState(null); // null = all, false = not reached out, true = reached out
+  const [selected, setSelected] = useState(new Set());
+  const [toast, setToast] = useState(null);
+
+  const fetchApproved = async (page = 1) => {
+    setLoading(true);
+    try {
+      let url = `${API_BASE}/api/admin/approved?page=${page}&per_page=25`;
+      if (filter !== null) url += `&reached_out=${filter}`;
+      const response = await adminFetch(url);
+      if (!response.ok) throw new Error("Failed to fetch");
+      const result = await response.json();
+      setData(result);
+      setSelected(new Set());
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkReachedOut = async () => {
+    if (selected.size === 0) return;
+
+    const ids = Array.from(selected);
+    // Optimistic update
+    setData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        ids.includes(item.id) ? { ...item, reached_out: true } : item
+      ),
+    }));
+    setSelected(new Set());
+
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/approved/mark-reached-out`, {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) throw new Error("Failed to mark");
+      const result = await response.json();
+      setToast({ message: `Marked ${result.count} as reached out`, type: "success" });
+    } catch (err) {
+      fetchApproved(data.page); // Rollback by refetching
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === data.items.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(data.items.map((i) => i.id)));
+    }
+  };
+
+  const copyEmail = (email) => {
+    navigator.clipboard.writeText(email);
+    setToast({ message: "Email copied", type: "success" });
+  };
+
+  useEffect(() => {
+    fetchApproved(1);
+  }, [filter]);
+
+  const totalPages = Math.ceil(data.total / data.per_page);
+
+  return (
+    <div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* Actions bar */}
+      <div className="bg-white border-2 border-amber-300 p-4 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleMarkReachedOut}
+            disabled={selected.size === 0}
+            className="bg-amber-900 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-800 disabled:opacity-50"
+          >
+            Mark Selected as Reached Out
+          </button>
+          <span className="font-mono text-sm text-amber-600">{selected.size} selected</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-amber-600">Filter:</span>
+          <select
+            value={filter === null ? "all" : filter.toString()}
+            onChange={(e) => setFilter(e.target.value === "all" ? null : e.target.value === "true")}
+            className="border-2 border-amber-300 px-3 py-1 font-mono text-sm focus:outline-none focus:border-amber-500"
+          >
+            <option value="all">All</option>
+            <option value="false">Not Reached Out</option>
+            <option value="true">Reached Out</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border-2 border-amber-300 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-amber-900 text-amber-50">
+              <tr>
+                <th className="px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={data.items.length > 0 && selected.size === data.items.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">CALLSIGN</th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">EMAIL</th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">CERT #</th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">APPROVED</th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">REACHED OUT</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-amber-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center font-mono text-amber-600">
+                    Loading...
+                  </td>
+                </tr>
+              ) : data.items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center font-serif italic text-amber-600">
+                    No approved attempts
+                  </td>
+                </tr>
+              ) : (
+                data.items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={item.reached_out ? "opacity-50" : ""}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-amber-900">{item.callsign}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm text-amber-700">{item.email || "Not found"}</span>
+                        {item.email && (
+                          <button
+                            onClick={() => copyEmail(item.email)}
+                            className="text-amber-500 hover:text-amber-700"
+                            title="Copy email"
+                          >
+                            📋
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={`/api/certificate/${item.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-amber-600 hover:text-amber-800 underline"
+                      >
+                        #{item.certificate_number}
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm text-amber-700">
+                      {item.validated_at ? new Date(item.validated_at).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-1 font-mono ${
+                        item.reached_out
+                          ? "bg-green-100 text-green-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {item.reached_out ? "Yes" : "No"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-amber-200 flex items-center justify-between">
+            <span className="font-mono text-sm text-amber-600">
+              Showing {((data.page - 1) * data.per_page) + 1}-{Math.min(data.page * data.per_page, data.total)} of {data.total}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => fetchApproved(data.page - 1)}
+                disabled={data.page <= 1}
+                className="px-3 py-1 font-mono text-sm border border-amber-300 hover:bg-amber-100 disabled:opacity-50"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => fetchApproved(data.page + 1)}
+                disabled={data.page >= totalPages}
+                className="px-3 py-1 font-mono text-sm border border-amber-300 hover:bg-amber-100 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Mount the app
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(KnowCodeExtra));
