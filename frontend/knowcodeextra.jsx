@@ -110,6 +110,8 @@ export default function KnowCodeExtra() {
   const [userCall, setUserCall] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [certificateNumber, setCertificateNumber] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [stats, setStats] = useState(null);
@@ -225,6 +227,14 @@ export default function KnowCodeExtra() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  // Format seconds as MM:SS
+  const formatTime = (seconds) => {
+    if (!seconds || !isFinite(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Home Page
@@ -540,8 +550,12 @@ export default function KnowCodeExtra() {
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
+                onLoadedMetadata={(e) => {
+                  setAudioDuration(e.target.duration);
+                }}
                 onTimeUpdate={(e) => {
                   const audio = e.target;
+                  setAudioCurrentTime(audio.currentTime);
                   setAudioProgress(
                     (audio.currentTime / audio.duration) * 100 || 0,
                   );
@@ -572,9 +586,14 @@ export default function KnowCodeExtra() {
                       style={{ width: `${audioProgress}%` }}
                     />
                   </div>
-                  <p className="font-mono text-xs text-amber-300 mt-2">
-                    {isPlaying ? "TRANSMITTING..." : "READY TO TRANSMIT"}
-                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="font-mono text-xs text-amber-300">
+                      {isPlaying ? "TRANSMITTING..." : "READY TO TRANSMIT"}
+                    </p>
+                    <p className="font-mono text-xs text-amber-300">
+                      {formatTime(audioCurrentTime)} / {formatTime(audioDuration)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
