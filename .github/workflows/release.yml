@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-action@stable
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build release binary
+      run: cargo build --release
+
+    - name: Build frontend
+      run: cd frontend && ./build.sh
+
+    - name: Get version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create release tarball
+      run: |
+        mkdir -p release
+        cp target/release/knowcodeextra release/
+        cp -r static release/
+        tar -czvf knowcodeextra-${{ steps.version.outputs.VERSION }}-linux-x86_64.tar.gz -C release .
+
+    - name: Calculate checksum
+      id: checksum
+      run: |
+        CHECKSUM=$(sha256sum knowcodeextra-${{ steps.version.outputs.VERSION }}-linux-x86_64.tar.gz | cut -d ' ' -f 1)
+        echo "SHA256=${CHECKSUM}" >> $GITHUB_OUTPUT
+        echo "sha256:${CHECKSUM}" > knowcodeextra-${{ steps.version.outputs.VERSION }}-linux-x86_64.tar.gz.sha256
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          knowcodeextra-${{ steps.version.outputs.VERSION }}-linux-x86_64.tar.gz
+          knowcodeextra-${{ steps.version.outputs.VERSION }}-linux-x86_64.tar.gz.sha256
+        body: |
+          ## Release ${{ steps.version.outputs.VERSION }}
+
+          ### Checksums
+          ```
+          SHA256: ${{ steps.checksum.outputs.SHA256 }}
+          ```
+
+          ### Installation
+          Update your ansible group_vars with:
+          ```yaml
+          knowcodeextra_version: "${{ steps.version.outputs.VERSION }}"
+          knowcodeextra_checksum: "sha256:${{ steps.checksum.outputs.SHA256 }}"
+          ```
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

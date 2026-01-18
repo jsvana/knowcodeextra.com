@@ -121,7 +121,7 @@ impl Config {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttemptRequest {
     pub callsign: String,
-    pub test_speed: i32,        // 5, 13, or 20
+    pub test_speed: i32,        // 20 WPM only
     pub questions_correct: i32, // 0-10
     pub copy_chars: i32,        // characters copied
     pub passed: bool,
@@ -319,11 +319,11 @@ async fn create_attempt(
         ));
     }
 
-    // Validate test speed
-    if ![5, 13, 20].contains(&req.test_speed) {
+    // Validate test speed (only 20 WPM supported)
+    if req.test_speed != 20 {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Invalid test speed. Must be 5, 13, or 20".to_string(),
+            "Invalid test speed. Must be 20".to_string(),
         ));
     }
 

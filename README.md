@@ -100,10 +100,7 @@ ssh user@vps "sudo systemctl restart knowcodeextra"
 
 ## Audio Files
 
-Place MP3 files in `static/audio/{5wpm,13wpm,20wpm}/`. The frontend expects:
-- `/audio/5wpm/test.mp3`
-- `/audio/13wpm/test.mp3`
-- `/audio/20wpm/test.mp3`
+Place the test MP3 file in `static/audio/20wpm/test.mp3`.
 
 ## License
 

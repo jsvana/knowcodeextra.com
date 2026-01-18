@@ -1,123 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 
-// Sample test data structure - you'd expand this with actual test content
+// Test data - 20 WPM Extra Class examination only
 const testData = {
-  "5wpm": {
-    speed: 5,
-    title: "Novice Class",
-    year: "1991",
-    audioUrl: "/audio/5wpm/test.mp3",
-    questions: [
-      {
-        q: "What was the callsign mentioned in the transmission?",
-        options: ["W1AW", "K3ABC", "N0XYZ", "WB4WXD"],
-        answer: 0,
-      },
-      {
-        q: "What frequency was discussed?",
-        options: ["7.040 MHz", "14.060 MHz", "3.560 MHz", "21.040 MHz"],
-        answer: 1,
-      },
-      {
-        q: "What was the signal report given?",
-        options: ["599", "559", "579", "449"],
-        answer: 2,
-      },
-      {
-        q: "What state was the operator located in?",
-        options: ["Texas", "Ohio", "California", "Florida"],
-        answer: 0,
-      },
-      {
-        q: "What type of antenna was mentioned?",
-        options: ["Dipole", "Yagi", "Vertical", "Loop"],
-        answer: 0,
-      },
-      {
-        q: "What was the operator's name?",
-        options: ["John", "Mike", "Dave", "Bill"],
-        answer: 2,
-      },
-      {
-        q: "What band were they operating on?",
-        options: ["40 meters", "20 meters", "80 meters", "15 meters"],
-        answer: 1,
-      },
-      {
-        q: "What power level was mentioned?",
-        options: ["5 watts", "100 watts", "50 watts", "1000 watts"],
-        answer: 1,
-      },
-      {
-        q: "What was the weather condition mentioned?",
-        options: ["Sunny", "Rainy", "Cloudy", "Snowy"],
-        answer: 0,
-      },
-      {
-        q: "What time was the QSO?",
-        options: ["Morning", "Afternoon", "Evening", "Night"],
-        answer: 2,
-      },
-    ],
-  },
-  "13wpm": {
-    speed: 13,
-    title: "General Class",
-    year: "1991",
-    audioUrl: "/audio/13wpm/test.mp3",
-    questions: [
-      {
-        q: "What was the callsign mentioned?",
-        options: ["W1AW", "K3ABC", "N0XYZ", "WB4WXD"],
-        answer: 0,
-      },
-      {
-        q: "What frequency was discussed?",
-        options: ["7.040 MHz", "14.060 MHz", "3.560 MHz", "21.040 MHz"],
-        answer: 1,
-      },
-      {
-        q: "What was the signal report?",
-        options: ["599", "559", "579", "449"],
-        answer: 2,
-      },
-      {
-        q: "What state was mentioned?",
-        options: ["Texas", "Ohio", "California", "Florida"],
-        answer: 0,
-      },
-      {
-        q: "What antenna type was discussed?",
-        options: ["Dipole", "Yagi", "Vertical", "Loop"],
-        answer: 0,
-      },
-      {
-        q: "What was the operator's name?",
-        options: ["John", "Mike", "Dave", "Bill"],
-        answer: 2,
-      },
-      {
-        q: "What band was in use?",
-        options: ["40 meters", "20 meters", "80 meters", "15 meters"],
-        answer: 1,
-      },
-      {
-        q: "What power level was reported?",
-        options: ["5 watts", "100 watts", "50 watts", "1000 watts"],
-        answer: 1,
-      },
-      {
-        q: "What weather was mentioned?",
-        options: ["Sunny", "Rainy", "Cloudy", "Snowy"],
-        answer: 0,
-      },
-      {
-        q: "What time of day was it?",
-        options: ["Morning", "Afternoon", "Evening", "Night"],
-        answer: 2,
-      },
-    ],
-  },
   "20wpm": {
     speed: 20,
     title: "Extra Class",
@@ -600,9 +484,8 @@ export default function KnowCodeExtra() {
               <p className="font-serif text-amber-800 text-sm leading-relaxed">
                 <strong>Historical Note:</strong> From 1936 until 2007, the FCC
                 required amateur radio operators to demonstrate Morse code
-                proficiency. The 5 WPM test was required for Novice and
-                Technician Plus, 13 WPM for General, and 20 WPM for Amateur
-                Extra class licenses.
+                proficiency. The 20 WPM test was required for the Amateur
+                Extra class license.
               </p>
             </div>
           </div>{" "}

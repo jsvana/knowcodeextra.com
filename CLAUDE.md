@@ -50,4 +50,4 @@ Config loads in order (later overrides earlier):
 
 ## Audio Files
 
-Test audio files go in `static/audio/{5wpm,13wpm,20wpm}/test.mp3`. These are not included in the repo.
+Test audio files go in `static/audio/20wpm/test.mp3`. These are not included in the repo.
