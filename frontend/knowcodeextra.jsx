@@ -1641,6 +1641,239 @@ function AdminDashboard({ onNavigate }) {
   );
 }
 
+// Admin Queue Page
+function AdminQueue({ onPendingCountChange }) {
+  const { adminFetch } = useAdminAuth();
+  const [queue, setQueue] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedCallsign, setExpandedCallsign] = useState(null);
+  const [history, setHistory] = useState({});
+  const [toast, setToast] = useState(null);
+  const [rejectModal, setRejectModal] = useState({ isOpen: false, attemptId: null });
+  const [rejectNote, setRejectNote] = useState("");
+
+  const fetchQueue = async () => {
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/queue`);
+      if (!response.ok) throw new Error("Failed to fetch queue");
+      const data = await response.json();
+      setQueue(data);
+      onPendingCountChange?.(data.length);
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchHistory = async (callsign) => {
+    if (history[callsign]) return;
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/queue/${callsign}/history`);
+      if (!response.ok) throw new Error("Failed to fetch history");
+      const data = await response.json();
+      setHistory((prev) => ({ ...prev, [callsign]: data }));
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const handleApprove = async (attemptId) => {
+    // Optimistic update
+    const item = queue.find((q) => q.id === attemptId);
+    setQueue((prev) => prev.filter((q) => q.id !== attemptId));
+
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/queue/${attemptId}/approve`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to approve");
+      const data = await response.json();
+      setToast({ message: `Approved - Certificate #${data.certificate_number}`, type: "success" });
+      onPendingCountChange?.(queue.length - 1);
+    } catch (err) {
+      // Rollback
+      setQueue((prev) => [...prev, item].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const handleReject = async () => {
+    const attemptId = rejectModal.attemptId;
+    const item = queue.find((q) => q.id === attemptId);
+    setQueue((prev) => prev.filter((q) => q.id !== attemptId));
+    setRejectModal({ isOpen: false, attemptId: null });
+
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/queue/${attemptId}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ note: rejectNote || null }),
+      });
+      if (!response.ok) throw new Error("Failed to reject");
+      setToast({ message: "Rejected", type: "success" });
+      setRejectNote("");
+      onPendingCountChange?.(queue.length - 1);
+    } catch (err) {
+      setQueue((prev) => [...prev, item].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const toggleHistory = (callsign) => {
+    if (expandedCallsign === callsign) {
+      setExpandedCallsign(null);
+    } else {
+      setExpandedCallsign(callsign);
+      fetchHistory(callsign);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+  }, []);
+
+  const formatRelativeTime = (date) => {
+    const now = new Date();
+    const diff = now - new Date(date);
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    const mins = Math.floor(diff / (1000 * 60));
+    return `${mins}m ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="font-mono text-amber-600">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      <div className="bg-white border-2 border-amber-300 shadow-sm">
+        <div className="bg-amber-900 text-amber-50 px-6 py-3">
+          <h3 className="font-mono text-sm tracking-widest">PENDING VALIDATION</h3>
+        </div>
+
+        {queue.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <p className="font-serif text-xl text-amber-800 mb-2">No pending attempts</p>
+            <p className="font-mono text-sm text-amber-600">You're all caught up!</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-amber-200">
+            {queue.map((item) => (
+              <div key={item.id}>
+                <div className="px-6 py-4 flex items-center justify-between">
+                  <div className="flex-1">
+                    <button
+                      onClick={() => toggleHistory(item.callsign)}
+                      className="font-mono text-lg font-bold text-amber-900 hover:text-amber-700"
+                    >
+                      {item.callsign}
+                      <span className="ml-2 text-xs text-amber-500">
+                        {expandedCallsign === item.callsign ? "▼" : "▶"}
+                      </span>
+                    </button>
+                    <div className="flex gap-4 mt-1 font-mono text-sm text-amber-600">
+                      <span>{item.questions_correct}/10</span>
+                      <span>{item.copy_chars} chars</span>
+                      <span>{formatRelativeTime(item.created_at)}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApprove(item.id)}
+                      className="bg-green-600 text-white px-4 py-2 font-mono text-sm hover:bg-green-700"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => setRejectModal({ isOpen: true, attemptId: item.id })}
+                      className="bg-red-600 text-white px-4 py-2 font-mono text-sm hover:bg-red-700"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+
+                {/* History panel */}
+                {expandedCallsign === item.callsign && history[item.callsign] && (
+                  <div className="bg-amber-50 px-6 py-4 border-t border-amber-200">
+                    <h4 className="font-mono text-xs text-amber-700 mb-2">HISTORY FOR {item.callsign}</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full font-mono text-sm">
+                        <thead>
+                          <tr className="text-amber-600 text-left">
+                            <th className="pr-4">Date</th>
+                            <th className="pr-4">Score</th>
+                            <th className="pr-4">Copy</th>
+                            <th className="pr-4">Passed</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {history[item.callsign].map((h) => (
+                            <tr key={h.id} className="text-amber-800">
+                              <td className="pr-4 py-1">{new Date(h.created_at).toLocaleDateString()}</td>
+                              <td className="pr-4">{h.questions_correct}/10</td>
+                              <td className="pr-4">{h.copy_chars}</td>
+                              <td className="pr-4">{h.passed ? "Yes" : "No"}</td>
+                              <td>{h.validation_status || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Reject Modal */}
+      {rejectModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRejectModal({ isOpen: false, attemptId: null })} />
+          <div className="relative bg-amber-50 border-4 border-amber-800 shadow-2xl max-w-md w-full p-8">
+            <h2 className="font-serif text-2xl font-bold text-amber-900 mb-4">Reject Attempt</h2>
+            <div className="mb-4">
+              <label className="font-mono text-xs text-amber-700 block mb-1">NOTE (OPTIONAL)</label>
+              <textarea
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                className="w-full border-2 border-amber-300 bg-white p-3 font-mono text-sm h-24 focus:border-amber-500 focus:outline-none"
+                placeholder="Reason for rejection..."
+              />
+            </div>
+            <div className="flex gap-4 justify-end">
+              <button
+                onClick={() => setRejectModal({ isOpen: false, attemptId: null })}
+                className="px-4 py-2 font-mono text-sm border-2 border-amber-300 text-amber-800 hover:border-amber-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReject}
+                className="px-4 py-2 font-mono text-sm bg-red-600 text-white hover:bg-red-700"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Mount the app
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(KnowCodeExtra));
