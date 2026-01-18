@@ -208,6 +208,7 @@ export default function KnowCodeExtra() {
       questions_correct: correct,
       copy_chars: copyChars,
       passed: didPass,
+      audio_progress: audioProgress,
     });
 
     if (result?.blocked) {

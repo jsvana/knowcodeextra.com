@@ -125,6 +125,8 @@ pub struct AttemptRequest {
     pub questions_correct: i32, // 0-10
     pub copy_chars: i32,        // characters copied
     pub passed: bool,
+    #[serde(default)]
+    pub audio_progress: Option<f32>, // 0-100 percentage of audio played at submission
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -148,6 +150,8 @@ pub struct Attempt {
     pub email: Option<String>,
     #[sqlx(default)]
     pub reached_out: bool,
+    #[sqlx(default)]
+    pub audio_progress: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -280,6 +284,11 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await
         .ok();
 
+    sqlx::query("ALTER TABLE attempts ADD COLUMN audio_progress REAL")
+        .execute(pool)
+        .await
+        .ok();
+
     // Index for validation queue queries
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_validation_status ON attempts(validation_status)")
         .execute(pool)
@@ -348,8 +357,8 @@ async fn create_attempt(
 
     sqlx::query(
         r#"
-        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at, validation_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at, validation_status, audio_progress)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&id)
@@ -360,6 +369,7 @@ async fn create_attempt(
     .bind(req.passed)
     .bind(now.to_rfc3339())
     .bind(if req.passed { Some("pending") } else { None::<&str> })
+    .bind(req.audio_progress)
     .execute(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
