@@ -8,7 +8,10 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{sqlite::{SqliteConnectOptions, SqlitePoolOptions}, FromRow, SqlitePool};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    FromRow, SqlitePool,
+};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
@@ -78,7 +81,8 @@ impl Config {
     }
 
     pub fn load() -> Result<Self, config::ConfigError> {
-        let config_path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
+        let config_path =
+            std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
 
         config::Config::builder()
             // Start with defaults
@@ -224,6 +228,7 @@ pub struct AppState {
     pub admin_password: String,
     pub admin_jwt_secret: String,
     pub qrz_client: Option<qrz::QrzClient>,
+    pub static_dir: String,
 }
 
 // ============================================================================
@@ -325,7 +330,7 @@ async fn create_attempt(
 
     // Check if callsign already has an attempt today (rate limit: once per day)
     let today_attempt: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM attempts WHERE callsign = ? AND date(created_at) = date('now') LIMIT 1"
+        "SELECT id FROM attempts WHERE callsign = ? AND date(created_at) = date('now') LIMIT 1",
     )
     .bind(&callsign)
     .fetch_optional(&state.db)
@@ -557,17 +562,16 @@ async fn get_stats(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let total_passes: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM attempts WHERE passed = true AND validation_status = 'approved'"
+        "SELECT COUNT(*) FROM attempts WHERE passed = true AND validation_status = 'approved'",
     )
     .fetch_one(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let unique_callsigns: (i64,) =
-        sqlx::query_as("SELECT COUNT(DISTINCT callsign) FROM attempts")
-            .fetch_one(&state.db)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let unique_callsigns: (i64,) = sqlx::query_as("SELECT COUNT(DISTINCT callsign) FROM attempts")
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let attempts_by_speed: Vec<SpeedStats> = sqlx::query_as(
         r#"
@@ -657,7 +661,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         admin_password: config.admin_password.clone(),
         admin_jwt_secret: config.admin_jwt_secret.clone(),
         qrz_client,
+        static_dir: config.static_dir.clone(),
     });
+
+    // Generate initial PoLo notes file
+    if let Err(e) = admin::regenerate_polo_notes(&state).await {
+        tracing::warn!("Failed to generate initial PoLo notes file: {}", e);
+    }
 
     // CORS configuration
     let cors = CorsLayer::new()
@@ -673,10 +683,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/queue/:id/approve", post(admin::approve_attempt_json))
         .route("/queue/:id/reject", post(admin::reject_attempt_json))
         .route("/approved", get(admin::get_approved_list))
-        .route("/approved/mark-reached-out", post(admin::mark_reached_out_json))
+        .route(
+            "/approved/mark-reached-out",
+            post(admin::mark_reached_out_json),
+        )
         .route("/search", get(admin::search_attempts))
         .route("/settings", get(admin::get_settings))
-        .layer(middleware::from_fn_with_state(state.clone(), jwt::require_admin_auth));
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            jwt::require_admin_auth,
+        ));
+
+    // SPA fallback for admin routes
+    let index_file = ServeFile::new(format!("{}/index.html", config.static_dir));
 
     // Build router
     let app = Router::new()
@@ -686,13 +705,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/attempts/:callsign", get(get_callsign_attempts))
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
-        .route("/api/certificate/:attempt_id", get(certificate::get_certificate_svg))
+        .route(
+            "/api/certificate/:attempt_id",
+            get(certificate::get_certificate_svg),
+        )
         .route("/api/admin/login", post(jwt::login))
         .nest("/api/admin", admin_api)
-        .fallback_service(
-            ServeDir::new(&config.static_dir)
-                .not_found_service(ServeFile::new(format!("{}/index.html", config.static_dir))),
-        )
+        // Explicit SPA routes for /admin
+        .route_service("/admin", index_file.clone())
+        .route_service("/admin/", index_file.clone())
+        .fallback_service(ServeDir::new(&config.static_dir).not_found_service(index_file))
         .layer(cors)
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(state);

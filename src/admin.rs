@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::sync::Arc;
+use tokio::fs;
 
 /// Form data for rejection
 #[derive(Deserialize)]
@@ -57,8 +58,12 @@ pub struct ApprovedListQuery {
     pub reached_out: Option<bool>,
 }
 
-fn default_page() -> i32 { 1 }
-fn default_per_page() -> i32 { 25 }
+fn default_page() -> i32 {
+    1
+}
+fn default_per_page() -> i32 {
+    25
+}
 
 /// Search response
 #[derive(Debug, Serialize, FromRow)]
@@ -128,12 +133,11 @@ pub struct ApprovedAttempt {
 pub async fn get_admin_stats(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let pending: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM attempts WHERE validation_status = 'pending'"
-    )
-    .fetch_one(&state.db)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let pending: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM attempts WHERE validation_status = 'pending'")
+            .fetch_one(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let today = chrono::Utc::now().date_naive();
     let approved_today: (i64,) = sqlx::query_as(
@@ -144,19 +148,17 @@ pub async fn get_admin_stats(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let total_certs: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM attempts WHERE validation_status = 'approved'"
-    )
-    .fetch_one(&state.db)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let total_certs: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM attempts WHERE validation_status = 'approved'")
+            .fetch_one(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let rejected: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM attempts WHERE validation_status = 'rejected'"
-    )
-    .fetch_one(&state.db)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let rejected: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM attempts WHERE validation_status = 'rejected'")
+            .fetch_one(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Recent activity (last 10 approvals/rejections)
     let recent: Vec<RecentActivity> = sqlx::query_as(
@@ -166,7 +168,7 @@ pub async fn get_admin_stats(
         WHERE validation_status IN ('approved', 'rejected')
         ORDER BY validated_at DESC
         LIMIT 10
-        "#
+        "#,
     )
     .fetch_all(&state.db)
     .await
@@ -189,7 +191,7 @@ pub async fn get_queue(
         "SELECT id, callsign, questions_correct, copy_chars, created_at
          FROM attempts
          WHERE validation_status = 'pending'
-         ORDER BY created_at ASC"
+         ORDER BY created_at ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -207,7 +209,7 @@ pub async fn get_callsign_history(
         "SELECT id, questions_correct, copy_chars, passed, validation_status, created_at
          FROM attempts
          WHERE callsign = ?
-         ORDER BY created_at DESC"
+         ORDER BY created_at DESC",
     )
     .bind(&callsign)
     .fetch_all(&state.db)
@@ -222,28 +224,27 @@ pub async fn approve_attempt_json(
     State(state): State<Arc<crate::AppState>>,
     Path(attempt_id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let mut tx = state.db.begin().await
+    let mut tx = state
+        .db
+        .begin()
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let max_cert: (Option<i32>,) = sqlx::query_as(
-        "SELECT MAX(certificate_number) FROM attempts"
-    )
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let max_cert: (Option<i32>,) = sqlx::query_as("SELECT MAX(certificate_number) FROM attempts")
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let next_cert = max_cert.0.unwrap_or(0) + 1;
     let now = chrono::Utc::now();
 
     // Fetch email from QRZ if configured
     let email: Option<String> = if let Some(ref qrz) = state.qrz_client {
-        let callsign: (String,) = sqlx::query_as(
-            "SELECT callsign FROM attempts WHERE id = ?"
-        )
-        .bind(&attempt_id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let callsign: (String,) = sqlx::query_as("SELECT callsign FROM attempts WHERE id = ?")
+            .bind(&attempt_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
         qrz.lookup_email(&callsign.0).await.ok().flatten()
     } else {
@@ -263,11 +264,21 @@ pub async fn approve_attempt_json(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if result.rows_affected() == 0 {
-        return Err((StatusCode::NOT_FOUND, "Attempt not found or not pending".to_string()));
+        return Err((
+            StatusCode::NOT_FOUND,
+            "Attempt not found or not pending".to_string(),
+        ));
     }
 
-    tx.commit().await
+    tx.commit()
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Regenerate the Ham2K PoLo notes file
+    if let Err(e) = regenerate_polo_notes(&state).await {
+        tracing::error!("Failed to regenerate PoLo notes: {}", e);
+        // Don't fail the approval, just log the error
+    }
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -285,7 +296,7 @@ pub async fn reject_attempt_json(
 
     let result = sqlx::query(
         "UPDATE attempts SET validation_status = 'rejected', validated_at = ?, admin_note = ?
-         WHERE id = ? AND validation_status = 'pending'"
+         WHERE id = ? AND validation_status = 'pending'",
     )
     .bind(now.to_rfc3339())
     .bind(form.note)
@@ -295,7 +306,10 @@ pub async fn reject_attempt_json(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if result.rows_affected() == 0 {
-        return Err((StatusCode::NOT_FOUND, "Attempt not found or not pending".to_string()));
+        return Err((
+            StatusCode::NOT_FOUND,
+            "Attempt not found or not pending".to_string(),
+        ));
     }
 
     Ok(Json(serde_json::json!({ "success": true })))
@@ -315,7 +329,7 @@ pub async fn get_approved_list(
                  FROM attempts
                  WHERE validation_status = 'approved' AND reached_out = 1
                  ORDER BY certificate_number DESC
-                 LIMIT ? OFFSET ?"
+                 LIMIT ? OFFSET ?",
             )
             .bind(query.per_page)
             .bind(offset)
@@ -338,7 +352,7 @@ pub async fn get_approved_list(
                  FROM attempts
                  WHERE validation_status = 'approved' AND reached_out = 0
                  ORDER BY certificate_number DESC
-                 LIMIT ? OFFSET ?"
+                 LIMIT ? OFFSET ?",
             )
             .bind(query.per_page)
             .bind(offset)
@@ -361,7 +375,7 @@ pub async fn get_approved_list(
                  FROM attempts
                  WHERE validation_status = 'approved'
                  ORDER BY certificate_number DESC
-                 LIMIT ? OFFSET ?"
+                 LIMIT ? OFFSET ?",
             )
             .bind(query.per_page)
             .bind(offset)
@@ -370,7 +384,7 @@ pub async fn get_approved_list(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
             let total: (i64,) = sqlx::query_as(
-                "SELECT COUNT(*) FROM attempts WHERE validation_status = 'approved'"
+                "SELECT COUNT(*) FROM attempts WHERE validation_status = 'approved'",
             )
             .fetch_one(&state.db)
             .await
@@ -408,7 +422,8 @@ pub async fn mark_reached_out_json(
         q = q.bind(id);
     }
 
-    let result = q.execute(&state.db)
+    let result = q
+        .execute(&state.db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -441,9 +456,7 @@ pub async fn search_attempts(
 }
 
 /// GET /api/admin/settings - Get safe config values
-pub async fn get_settings(
-    State(state): State<Arc<crate::AppState>>,
-) -> impl IntoResponse {
+pub async fn get_settings(State(state): State<Arc<crate::AppState>>) -> impl IntoResponse {
     // Note: We need to store config in AppState or pass it differently
     // For now, return what we can from AppState
     Json(SettingsResponse {
@@ -453,4 +466,47 @@ pub async fn get_settings(
         log_level: "[configured]".to_string(),
         qrz_enabled: state.qrz_client.is_some(),
     })
+}
+
+// ============================================================================
+// HAM2K POLO NOTES FILE GENERATION
+// ============================================================================
+
+/// Regenerate the Ham2K PoLo callsign notes file from approved members
+/// File format: one callsign per line with notes
+/// Example: W1ABC 🎉 Know Code Extra #1
+pub async fn regenerate_polo_notes(state: &Arc<crate::AppState>) -> Result<(), String> {
+    #[derive(FromRow)]
+    struct ApprovedMember {
+        callsign: String,
+        certificate_number: Option<i32>,
+    }
+
+    let members: Vec<ApprovedMember> = sqlx::query_as(
+        "SELECT callsign, certificate_number FROM attempts
+         WHERE validation_status = 'approved'
+         ORDER BY certificate_number ASC",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| format!("Database error: {}", e))?;
+
+    let mut content = String::from("# Know Code Extra Club Members\n");
+    content.push_str("# Ham2K PoLo Callsign Notes - https://knowcodeextra.com\n\n");
+
+    for member in members {
+        let cert_num = member.certificate_number.unwrap_or(0);
+        content.push_str(&format!(
+            "{} 🎉 Know Code Extra #{}\n",
+            member.callsign, cert_num
+        ));
+    }
+
+    let file_path = format!("{}/members.txt", state.static_dir);
+    fs::write(&file_path, content)
+        .await
+        .map_err(|e| format!("Failed to write PoLo notes file: {}", e))?;
+
+    tracing::info!("Regenerated PoLo notes file at {}", file_path);
+    Ok(())
 }
