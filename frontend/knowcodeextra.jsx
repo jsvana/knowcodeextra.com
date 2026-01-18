@@ -193,6 +193,26 @@ export default function KnowCodeExtra() {
     setAnswers((prev) => ({ ...prev, [questionIndex]: answerIndex }));
   };
 
+  const handleAbandon = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to abandon this test?\n\nYou can only attempt the test once per day. If you abandon now, you won't be able to try again until tomorrow."
+    );
+
+    if (confirmed && selectedTest) {
+      const test = testData[selectedTest];
+      // Log a failed attempt
+      await submitAttempt({
+        callsign: userCall,
+        test_speed: test.speed,
+        questions_correct: 0,
+        copy_chars: 0,
+        passed: false,
+        audio_progress: audioProgress,
+      });
+      setView("select");
+    }
+  };
+
   const calculateResults = async () => {
     const test = testData[selectedTest];
     let correct = 0;
@@ -538,7 +558,7 @@ export default function KnowCodeExtra() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <button
-                onClick={() => setView("select")}
+                onClick={handleAbandon}
                 className="font-mono text-sm text-amber-700 hover:text-amber-900 flex items-center gap-2 font-medium"
               >
                 ← ABANDON TEST
