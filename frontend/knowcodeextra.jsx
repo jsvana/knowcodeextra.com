@@ -805,13 +805,17 @@ export default function KnowCodeExtra() {
               </h3>
 
               <div className="space-y-6">
-                {questions.map((q, qi) => {
+                {questions.map((q) => {
                   const options = [
                     { letter: "A", text: q.option_a },
                     { letter: "B", text: q.option_b },
                     { letter: "C", text: q.option_c },
                     { letter: "D", text: q.option_d },
                   ];
+                  const isSelected = (letter) => answers[q.id] === letter;
+                  const isCorrect = (letter) => correctAnswers && correctAnswers[q.id] === letter;
+                  const showCorrect = testComplete && passed && correctAnswers;
+
                   return (
                     <div
                       key={q.id}
@@ -819,7 +823,7 @@ export default function KnowCodeExtra() {
                     >
                       <p className="font-serif text-amber-900 mb-3">
                         <span className="font-mono text-amber-600 mr-2 font-medium">
-                          {qi + 1}.
+                          {q.question_number}.
                         </span>
                         {q.question_text}
                       </p>
@@ -827,13 +831,15 @@ export default function KnowCodeExtra() {
                         {options.map((opt) => (
                           <button
                             key={opt.letter}
-                            onClick={() => handleAnswer(q.id, opt.letter)}
+                            onClick={() => !testComplete && handleAnswer(q.id, opt.letter)}
+                            disabled={testComplete}
                             className={`p-3 text-left font-serif text-sm border-2 transition-all
                                      ${
-                                       answers[q.id] === opt.letter
+                                       isSelected(opt.letter)
                                          ? "border-amber-600 bg-amber-100 text-amber-900"
                                          : "border-amber-300 bg-amber-50 hover:border-amber-500 text-amber-800"
-                                     }`}
+                                     }
+                                     ${showCorrect && isCorrect(opt.letter) ? "ring-2 ring-green-500" : ""}`}
                           >
                             <span className="font-mono text-xs text-amber-600 mr-2 font-medium">
                               {opt.letter}.
@@ -950,6 +956,54 @@ export default function KnowCodeExtra() {
                     verification. Once approved, you'll be able to view and
                     download your official certificate.
                   </p>
+                </div>
+              )}
+
+              {/* Question Review - only shown when passed with correct answers */}
+              {passed && correctAnswers && (
+                <div className="bg-white border-2 border-amber-300 p-6 mb-6 text-left">
+                  <h3 className="font-mono text-sm text-amber-800 mb-4 font-bold text-center">
+                    QUESTION REVIEW
+                  </h3>
+                  <div className="space-y-4">
+                    {questions.map((q) => {
+                      const options = [
+                        { letter: "A", text: q.option_a },
+                        { letter: "B", text: q.option_b },
+                        { letter: "C", text: q.option_c },
+                        { letter: "D", text: q.option_d },
+                      ];
+                      return (
+                        <div key={q.id} className="border-b border-amber-200 pb-4 last:border-0">
+                          <p className="font-serif text-amber-900 mb-2 text-sm">
+                            <span className="font-mono text-amber-600 mr-2 font-medium">
+                              {q.question_number}.
+                            </span>
+                            {q.question_text}
+                          </p>
+                          <div className="grid grid-cols-2 gap-1">
+                            {options.map((opt) => {
+                              const isSelected = answers[q.id] === opt.letter;
+                              const isCorrect = correctAnswers[q.id] === opt.letter;
+                              return (
+                                <div
+                                  key={opt.letter}
+                                  className={`p-2 text-xs font-serif border transition-all
+                                    ${isSelected ? "border-amber-600 bg-amber-100" : "border-amber-200 bg-amber-50"}
+                                    ${isCorrect ? "ring-2 ring-green-500" : ""}`}
+                                >
+                                  <span className="font-mono text-amber-600 mr-1">
+                                    {opt.letter}.
+                                  </span>
+                                  {opt.text}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
