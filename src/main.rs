@@ -214,6 +214,61 @@ pub struct CallsignQuery {
     pub speed: Option<i32>,
 }
 
+// Test data types (for public API - no correct answers)
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Test {
+    pub id: String,
+    pub title: String,
+    pub speed_wpm: i32,
+    pub year: String,
+    pub audio_url: String,
+    pub passing_score: i32,
+    pub active: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct PublicQuestion {
+    pub id: String,
+    pub test_id: String,
+    pub question_number: i32,
+    pub question_text: String,
+    pub option_a: String,
+    pub option_b: String,
+    pub option_c: String,
+    pub option_d: String,
+    // NOTE: correct_option intentionally excluded
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct QuestionWithAnswer {
+    pub id: String,
+    pub question_number: i32,
+    pub question_text: String,
+    pub option_a: String,
+    pub option_b: String,
+    pub option_c: String,
+    pub option_d: String,
+    pub correct_option: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TestSubmission {
+    pub callsign: String,
+    pub answers: std::collections::HashMap<String, String>, // question_id -> "A"/"B"/"C"/"D"
+    pub copy_text: Option<String>,
+    pub audio_progress: Option<f32>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TestSubmissionResponse {
+    pub passed: bool,
+    pub score: i32,
+    pub passing_score: i32,
+    pub correct_answers: Option<std::collections::HashMap<String, String>>, // Only on pass
+    pub certificate_id: Option<String>,
+}
+
 // ============================================================================
 // Application State
 // ============================================================================
