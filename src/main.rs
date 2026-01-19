@@ -84,7 +84,7 @@ impl Config {
         let config_path =
             std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
 
-        config::Config::builder()
+        let mut config: Config = config::Config::builder()
             // Start with defaults
             .set_default("database_url", Self::default_database_url())?
             .set_default("listen_addr", Self::default_listen_addr())?
@@ -95,46 +95,33 @@ impl Config {
             .set_default("admin_jwt_secret", Self::default_admin_jwt_secret())?
             // Layer on config file (optional)
             .add_source(config::File::with_name(&config_path).required(false))
-            // Layer on environment variables (prefix KNOWCODE_)
-            .add_source(
-                config::Environment::with_prefix("KNOWCODE")
-                    .separator("__")
-                    .try_parsing(true),
-            )
-            // Legacy env var support
-            .add_source(
-                config::Environment::default()
-                    .prefix("")
-                    .try_parsing(true)
-                    .source(Some({
-                        let mut map = std::collections::HashMap::new();
-                        if let Ok(v) = std::env::var("DATABASE_URL") {
-                            map.insert("database_url".to_string(), v);
-                        }
-                        if let Ok(v) = std::env::var("LISTEN_ADDR") {
-                            map.insert("listen_addr".to_string(), v);
-                        }
-                        if let Ok(v) = std::env::var("STATIC_DIR") {
-                            map.insert("static_dir".to_string(), v);
-                        }
-                        if let Ok(v) = std::env::var("RUST_LOG") {
-                            map.insert("log_level".to_string(), v);
-                        }
-                        // Admin credentials from KNOWCODE_ prefixed env vars
-                        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_USERNAME") {
-                            map.insert("admin_username".to_string(), v);
-                        }
-                        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_PASSWORD") {
-                            map.insert("admin_password".to_string(), v);
-                        }
-                        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_JWT_SECRET") {
-                            map.insert("admin_jwt_secret".to_string(), v);
-                        }
-                        map
-                    })),
-            )
             .build()?
-            .try_deserialize()
+            .try_deserialize()?;
+
+        // Override with environment variables (these take highest priority)
+        if let Ok(v) = std::env::var("DATABASE_URL") {
+            config.database_url = v;
+        }
+        if let Ok(v) = std::env::var("LISTEN_ADDR") {
+            config.listen_addr = v;
+        }
+        if let Ok(v) = std::env::var("STATIC_DIR") {
+            config.static_dir = v;
+        }
+        if let Ok(v) = std::env::var("RUST_LOG") {
+            config.log_level = v;
+        }
+        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_USERNAME") {
+            config.admin_username = v;
+        }
+        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_PASSWORD") {
+            config.admin_password = v;
+        }
+        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_JWT_SECRET") {
+            config.admin_jwt_secret = v;
+        }
+
+        Ok(config)
     }
 }
 
