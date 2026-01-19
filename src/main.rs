@@ -249,6 +249,24 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // Create tests table
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS tests (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            speed_wpm INTEGER NOT NULL,
+            year TEXT NOT NULL,
+            audio_url TEXT NOT NULL,
+            passing_score INTEGER NOT NULL DEFAULT 7,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
     // Create indexes for common queries
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_callsign ON attempts(callsign)")
         .execute(pool)
