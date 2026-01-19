@@ -23,24 +23,20 @@ export const getSegmentColor = (name) => {
 
 // Vintage-style background pattern component
 export const VintagePattern = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-[0.03]">
-    <div
-      className="absolute inset-0"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-      }}
-    />
-  </div>
+  <svg className="absolute inset-0 w-full h-full opacity-5" xmlns="http://www.w3.org/2000/svg">
+    <pattern id="telegraph" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="currentColor" />
+    </pattern>
+    <rect width="100%" height="100%" fill="url(#telegraph)" />
+  </svg>
 );
 
 // Telegraph key decorative element
 export const TelegraphKey = ({ className = "" }) => (
-  <svg viewBox="0 0 120 60" className={className} fill="currentColor">
-    <ellipse cx="60" cy="50" rx="55" ry="8" opacity="0.3" />
-    <rect x="20" y="35" width="80" height="12" rx="2" />
-    <rect x="55" y="20" width="10" height="20" rx="1" />
-    <circle cx="60" cy="15" r="8" />
-    <rect x="10" y="42" width="100" height="4" rx="2" opacity="0.5" />
+  <svg className={className} viewBox="0 0 100 50" fill="currentColor">
+    <rect x="10" y="35" width="80" height="10" rx="2" />
+    <rect x="40" y="20" width="20" height="20" rx="2" />
+    <circle cx="50" cy="15" r="8" />
   </svg>
 );
 
@@ -49,47 +45,42 @@ export const ConfirmModal = ({
   isOpen,
   title,
   message,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm,
   onCancel,
-  confirmText = "Yes",
-  cancelText = "Cancel",
+  confirmStyle = "danger",
 }) => {
   if (!isOpen) return null;
 
+  const confirmButtonStyles = {
+    danger: "bg-red-700 hover:bg-red-600 text-white",
+    success: "bg-green-700 hover:bg-green-600 text-white",
+    warning: "bg-amber-600 hover:bg-amber-500 text-white",
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+      <div className="relative bg-amber-50 border-4 border-amber-800 p-6 max-w-md mx-4">
+        <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-amber-900" />
+        <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-amber-900" />
+        <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-amber-900" />
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-amber-900" />
 
-      {/* Modal */}
-      <div className="relative bg-amber-50 border-4 border-amber-800 shadow-2xl max-w-md w-full p-8">
-        {/* Corner ornaments */}
-        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-600" />
-        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-600" />
-        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-600" />
-        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-600" />
+        <h3 className="font-serif text-xl text-amber-900 mb-4">{title}</h3>
+        <p className="font-mono text-sm text-amber-800 mb-6">{message}</p>
 
-        <h2
-          className="font-serif text-2xl font-bold text-amber-900 mb-4 text-center"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          {title}
-        </h2>
-
-        <p className="font-serif text-amber-800 text-center mb-8 whitespace-pre-line">
-          {message}
-        </p>
-
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="px-6 py-3 font-mono text-sm tracking-widest border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+            className="px-4 py-2 font-mono text-sm border-2 border-amber-300 text-amber-800 hover:border-amber-500 transition-colors"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
-            className="px-6 py-3 font-mono text-sm tracking-widest bg-amber-900 text-amber-50 hover:bg-amber-800 transition-all"
+            className={`px-4 py-2 font-mono text-sm transition-colors ${confirmButtonStyles[confirmStyle]}`}
           >
             {confirmText}
           </button>
