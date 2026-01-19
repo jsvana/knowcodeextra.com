@@ -736,6 +736,36 @@ async fn list_tests(
     Ok(Json(tests))
 }
 
+/// GET /api/tests/:test_id/questions - Get questions without correct answers
+async fn get_test_questions(
+    State(state): State<Arc<AppState>>,
+    Path(test_id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Verify test exists and is active
+    let test: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM tests WHERE id = ? AND active = 1"
+    )
+    .bind(&test_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if test.is_none() {
+        return Err((StatusCode::NOT_FOUND, "Test not found".to_string()));
+    }
+
+    let questions: Vec<PublicQuestion> = sqlx::query_as(
+        "SELECT id, test_id, question_number, question_text, option_a, option_b, option_c, option_d
+         FROM questions WHERE test_id = ? ORDER BY question_number"
+    )
+    .bind(&test_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(questions))
+}
+
 /// Health check endpoint
 async fn health() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -844,6 +874,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
         .route("/api/tests", get(list_tests))
+        .route("/api/tests/:test_id/questions", get(get_test_questions))
         .route(
             "/api/certificate/:attempt_id",
             get(certificate::get_certificate_svg),
