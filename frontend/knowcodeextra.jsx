@@ -2779,8 +2779,9 @@ function TestManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingQuestions, setEditingQuestions] = useState(null);
+  const [toggling, setToggling] = useState(null);
 
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
     try {
       const response = await adminFetch(`${API_BASE}/api/admin/tests`);
       if (!response.ok) throw new Error("Failed to fetch tests");
@@ -2792,13 +2793,14 @@ function TestManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminFetch]);
 
   useEffect(() => {
     fetchTests();
-  }, []);
+  }, [fetchTests]);
 
   const handleToggleActive = async (test) => {
+    setToggling(test.id);
     try {
       const response = await adminFetch(
         `${API_BASE}/api/admin/tests/${test.id}`,
@@ -2811,6 +2813,8 @@ function TestManager() {
       await fetchTests();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setToggling(null);
     }
   };
 
@@ -2889,13 +2893,16 @@ function TestManager() {
                   </button>
                   <button
                     onClick={() => handleToggleActive(test)}
+                    disabled={toggling === test.id}
                     className={`px-3 py-1 font-mono text-xs border-2 transition-all ${
-                      test.active
+                      toggling === test.id
+                        ? "border-gray-300 text-gray-400 cursor-not-allowed"
+                        : test.active
                         ? "border-red-300 text-red-800 hover:border-red-500 hover:bg-red-100"
                         : "border-green-300 text-green-800 hover:border-green-500 hover:bg-green-100"
                     }`}
                   >
-                    {test.active ? "Deactivate" : "Activate"}
+                    {toggling === test.id ? "..." : test.active ? "Deactivate" : "Activate"}
                   </button>
                 </div>
               </div>
