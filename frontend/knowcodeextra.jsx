@@ -1513,6 +1513,7 @@ function AdminLayout({ children, currentPage, pendingCount = 0 }) {
     { id: "queue", label: "Queue", icon: "📋", badge: pendingCount },
     { id: "approved", label: "Approved", icon: "✓" },
     { id: "search", label: "Search", icon: "🔍" },
+    { id: "tests", label: "Tests", icon: "📝" },
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
 
@@ -2771,6 +2772,148 @@ function QuestionForm({ question, onSave, onCancel }) {
   );
 }
 
+// Test Manager Component for managing tests
+function TestManager() {
+  const { adminFetch } = useAdminAuth();
+  const [tests, setTests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingQuestions, setEditingQuestions] = useState(null);
+
+  const fetchTests = async () => {
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/tests`);
+      if (!response.ok) throw new Error("Failed to fetch tests");
+      const data = await response.json();
+      setTests(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTests();
+  }, []);
+
+  const handleToggleActive = async (test) => {
+    try {
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/tests/${test.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ active: !test.active }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update test");
+      await fetchTests();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="font-mono text-amber-600">Loading tests...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {error && (
+        <div className="bg-red-50 border-2 border-red-300 p-4 mb-4">
+          <p className="text-red-800 font-mono text-sm">{error}</p>
+        </div>
+      )}
+
+      <div className="bg-white border-2 border-amber-300 p-6">
+        <h3 className="font-serif text-xl font-bold text-amber-900 mb-4">
+          Tests ({tests.length})
+        </h3>
+
+        {tests.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="font-serif text-amber-800 italic">
+              No tests found.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {tests.map((test) => (
+              <div
+                key={test.id}
+                className={`p-4 border flex justify-between items-center ${
+                  test.active
+                    ? "border-amber-500 bg-white"
+                    : "border-gray-300 bg-gray-100"
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="font-mono text-xs bg-amber-200 text-amber-800 px-2 py-0.5">
+                      ID: {test.id}
+                    </span>
+                    <span className="font-mono text-xs text-amber-600">
+                      {test.speed_wpm} WPM
+                    </span>
+                    {test.year && (
+                      <span className="font-mono text-xs text-amber-600">
+                        {test.year}
+                      </span>
+                    )}
+                    <span className={`font-mono text-xs px-2 py-0.5 ${
+                      test.active
+                        ? "bg-green-200 text-green-800"
+                        : "bg-gray-200 text-gray-600"
+                    }`}>
+                      {test.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="font-serif text-amber-900">
+                    {test.title || "Untitled Test"}
+                  </p>
+                  <p className="font-mono text-xs text-amber-600 mt-1">
+                    {test.question_count || 0} question{(test.question_count || 0) !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => setEditingQuestions(test.id)}
+                    className="px-3 py-1 font-mono text-xs border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+                  >
+                    Questions
+                  </button>
+                  <button
+                    onClick={() => handleToggleActive(test)}
+                    className={`px-3 py-1 font-mono text-xs border-2 transition-all ${
+                      test.active
+                        ? "border-red-300 text-red-800 hover:border-red-500 hover:bg-red-100"
+                        : "border-green-300 text-green-800 hover:border-green-500 hover:bg-green-100"
+                    }`}
+                  >
+                    {test.active ? "Deactivate" : "Activate"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {editingQuestions && (
+        <QuestionEditor
+          testId={editingQuestions}
+          onClose={() => setEditingQuestions(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // Question Editor Component for managing test questions
 function QuestionEditor({ testId, onClose }) {
   const { adminFetch } = useAdminAuth();
@@ -2992,7 +3135,7 @@ function AdminApp() {
       if (hash.startsWith("#/admin/")) {
         const page = hash.replace("#/admin/", "");
         if (
-          ["dashboard", "queue", "approved", "search", "settings"].includes(
+          ["dashboard", "queue", "approved", "search", "tests", "settings"].includes(
             page,
           )
         ) {
@@ -3027,6 +3170,9 @@ function AdminApp() {
       break;
     case "search":
       content = <AdminSearch />;
+      break;
+    case "tests":
+      content = <TestManager />;
       break;
     case "settings":
       content = <AdminSettings />;
