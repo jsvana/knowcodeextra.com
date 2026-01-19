@@ -120,6 +120,16 @@ impl Config {
                         if let Ok(v) = std::env::var("RUST_LOG") {
                             map.insert("log_level".to_string(), v);
                         }
+                        // Admin credentials from KNOWCODE_ prefixed env vars
+                        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_USERNAME") {
+                            map.insert("admin_username".to_string(), v);
+                        }
+                        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_PASSWORD") {
+                            map.insert("admin_password".to_string(), v);
+                        }
+                        if let Ok(v) = std::env::var("KNOWCODE_ADMIN_JWT_SECRET") {
+                            map.insert("admin_jwt_secret".to_string(), v);
+                        }
                         map
                     })),
             )
