@@ -681,3 +681,178 @@ pub async fn delete_test(
 
     Ok(Json(serde_json::json!({ "success": true })))
 }
+
+// ============================================================================
+// ADMIN QUESTION CRUD ENDPOINTS
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+pub struct CreateQuestionRequest {
+    pub question_number: i32,
+    pub question_text: String,
+    pub option_a: String,
+    pub option_b: String,
+    pub option_c: String,
+    pub option_d: String,
+    pub correct_option: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateQuestionRequest {
+    pub question_number: Option<i32>,
+    pub question_text: Option<String>,
+    pub option_a: Option<String>,
+    pub option_b: Option<String>,
+    pub option_c: Option<String>,
+    pub option_d: Option<String>,
+    pub correct_option: Option<String>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct AdminQuestion {
+    pub id: String,
+    pub test_id: String,
+    pub question_number: i32,
+    pub question_text: String,
+    pub option_a: String,
+    pub option_b: String,
+    pub option_c: String,
+    pub option_d: String,
+    pub correct_option: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// GET /api/admin/tests/:test_id/questions - List all questions for a test
+pub async fn list_questions_admin(
+    State(state): State<Arc<crate::AppState>>,
+    Path(test_id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let questions: Vec<AdminQuestion> = sqlx::query_as(
+        "SELECT id, test_id, question_number, question_text, option_a, option_b, option_c, option_d, correct_option, created_at
+         FROM questions WHERE test_id = ? ORDER BY question_number"
+    )
+    .bind(&test_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(questions))
+}
+
+/// POST /api/admin/tests/:test_id/questions - Create new question
+pub async fn create_question(
+    State(state): State<Arc<crate::AppState>>,
+    Path(test_id): Path<String>,
+    Json(req): Json<CreateQuestionRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Validate correct_option
+    if !["A", "B", "C", "D"].contains(&req.correct_option.to_uppercase().as_str()) {
+        return Err((StatusCode::BAD_REQUEST, "correct_option must be A, B, C, or D".to_string()));
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now();
+
+    sqlx::query(
+        "INSERT INTO questions (id, test_id, question_number, question_text, option_a, option_b, option_c, option_d, correct_option, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&id)
+    .bind(&test_id)
+    .bind(req.question_number)
+    .bind(&req.question_text)
+    .bind(&req.option_a)
+    .bind(&req.option_b)
+    .bind(&req.option_c)
+    .bind(&req.option_d)
+    .bind(req.correct_option.to_uppercase())
+    .bind(now.to_rfc3339())
+    .execute(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "id": id })))
+}
+
+/// PUT /api/admin/questions/:id - Update question
+pub async fn update_question(
+    State(state): State<Arc<crate::AppState>>,
+    Path(question_id): Path<String>,
+    Json(req): Json<UpdateQuestionRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    if let Some(ref opt) = req.correct_option {
+        if !["A", "B", "C", "D"].contains(&opt.to_uppercase().as_str()) {
+            return Err((StatusCode::BAD_REQUEST, "correct_option must be A, B, C, or D".to_string()));
+        }
+    }
+
+    let mut updates = Vec::new();
+    let mut bindings: Vec<String> = Vec::new();
+
+    if let Some(num) = req.question_number {
+        updates.push("question_number = ?");
+        bindings.push(num.to_string());
+    }
+    if let Some(ref text) = req.question_text {
+        updates.push("question_text = ?");
+        bindings.push(text.clone());
+    }
+    if let Some(ref a) = req.option_a {
+        updates.push("option_a = ?");
+        bindings.push(a.clone());
+    }
+    if let Some(ref b) = req.option_b {
+        updates.push("option_b = ?");
+        bindings.push(b.clone());
+    }
+    if let Some(ref c) = req.option_c {
+        updates.push("option_c = ?");
+        bindings.push(c.clone());
+    }
+    if let Some(ref d) = req.option_d {
+        updates.push("option_d = ?");
+        bindings.push(d.clone());
+    }
+    if let Some(ref opt) = req.correct_option {
+        updates.push("correct_option = ?");
+        bindings.push(opt.to_uppercase());
+    }
+
+    if updates.is_empty() {
+        return Ok(Json(serde_json::json!({ "success": true, "updated": false })));
+    }
+
+    let query = format!("UPDATE questions SET {} WHERE id = ?", updates.join(", "));
+    let mut q = sqlx::query(&query);
+    for b in &bindings {
+        q = q.bind(b);
+    }
+    q = q.bind(&question_id);
+
+    let result = q.execute(&state.db).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err((StatusCode::NOT_FOUND, "Question not found".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// DELETE /api/admin/questions/:id - Delete question
+pub async fn delete_question(
+    State(state): State<Arc<crate::AppState>>,
+    Path(question_id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let result = sqlx::query("DELETE FROM questions WHERE id = ?")
+        .bind(&question_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err((StatusCode::NOT_FOUND, "Question not found".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
