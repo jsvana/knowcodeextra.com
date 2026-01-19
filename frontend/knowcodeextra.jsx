@@ -1,14 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-
-// Audio segment definitions (times in seconds)
-const audioSegments = [
-  { name: "Intro", start: 0, end: 62, color: "bg-amber-600" },
-  { name: "Practice", start: 62, end: 126, color: "bg-amber-500" },
-  { name: "Instructions", start: 126, end: 221, color: "bg-amber-400" },
-  { name: "Test", start: 221, end: 531, color: "bg-green-600" },
-  { name: "Outro", start: 531, end: Infinity, color: "bg-amber-600" },
-];
-
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // Morse code for decorative elements
 const morsePatterns = {
@@ -341,14 +331,43 @@ export default function KnowCodeExtra() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Get segments for current test, with fallback
+  const activeSegments = useMemo(() => {
+    if (currentTest?.segments?.length > 0) {
+      return currentTest.segments.map(seg => ({
+        name: seg.name,
+        start: seg.start_time,
+        end: seg.end_time ?? Infinity,
+        color: getSegmentColor(seg.name),
+        enablesCopy: seg.enables_copy,
+        enablesQuestions: seg.enables_questions,
+      }));
+    }
+    // Fallback: single segment covering entire audio
+    return [{
+      name: 'Test',
+      start: 0,
+      end: Infinity,
+      color: 'bg-green-600',
+      enablesCopy: true,
+      enablesQuestions: true,
+    }];
+  }, [currentTest]);
+
   // Get current audio segment based on playback time
   const getCurrentSegment = (currentTime) => {
     return (
-      audioSegments.find(
+      activeSegments.find(
         (seg) => currentTime >= seg.start && currentTime < seg.end,
-      ) || audioSegments[0]
+      ) || activeSegments[0]
     );
   };
+
+  // Computed values for conditional UI display
+  const currentSegment = getCurrentSegment(audioCurrentTime);
+  const showCopySection = currentSegment?.enablesCopy || false;
+  const showQuestionsSection = currentSegment?.enablesQuestions || false;
+  const examComplete = audioPlayed; // After audio finishes, show everything
 
   // Home Page
   if (view === "home") {
@@ -658,6 +677,14 @@ export default function KnowCodeExtra() {
               </div>
             </div>
 
+            {/* User guidance notice */}
+            {!audioPlayed && !isPlaying && (
+              <div className="mb-4 p-3 border-2 border-amber-300 bg-amber-100 text-amber-800 font-mono text-sm">
+                Sections will appear as the recording progresses. Copy practice appears during practice segments.
+                Questions appear during the test segment. You'll see everything together at the end.
+              </div>
+            )}
+
             {/* Audio Player Section */}
             <div
               className="bg-gradient-to-br from-amber-900 to-amber-800 text-amber-50 p-8 mb-8
@@ -716,7 +743,7 @@ export default function KnowCodeExtra() {
                 <div className="flex-1">
                   {/* Segment timeline */}
                   <div className="flex h-3 rounded-full overflow-hidden mb-1">
-                    {audioSegments.map((seg, i) => {
+                    {activeSegments.map((seg, i) => {
                       const totalDuration = audioDuration || 531; // fallback to expected duration
                       const segEnd =
                         seg.end === Infinity ? totalDuration : seg.end;
@@ -748,7 +775,7 @@ export default function KnowCodeExtra() {
 
                   {/* Segment labels */}
                   <div className="flex mb-2">
-                    {audioSegments.map((seg) => {
+                    {activeSegments.map((seg) => {
                       const totalDuration = audioDuration || 531;
                       const segEnd =
                         seg.end === Infinity ? totalDuration : seg.end;
@@ -787,83 +814,87 @@ export default function KnowCodeExtra() {
             </div>
 
             {/* Copy Area */}
-            <div className="bg-white border-2 border-amber-300 p-6 mb-8 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-mono text-sm tracking-widest text-amber-900 font-bold">
-                  YOUR COPY
-                </h3>
-                <span className="font-mono text-sm text-amber-700 font-medium">
-                  {copyText.replace(/\s/g, "").length} / 100 characters
-                </span>
+            {(showCopySection || examComplete) && (
+              <div className="bg-white border-2 border-amber-300 p-6 mb-8 shadow-md">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-mono text-sm tracking-widest text-amber-900 font-bold">
+                    YOUR COPY
+                  </h3>
+                  <span className="font-mono text-sm text-amber-700 font-medium">
+                    {copyText.replace(/\s/g, "").length} / 100 characters
+                  </span>
+                </div>
+                <textarea
+                  value={copyText}
+                  onChange={(e) => setCopyText(e.target.value)}
+                  className="w-full h-40 border-2 border-amber-300 bg-amber-50 p-4 font-mono text-lg
+                          focus:border-amber-500 focus:outline-none resize-none"
+                  placeholder="Copy the transmission here..."
+                />
+                <p className="font-serif text-xs text-amber-700 mt-2 italic">
+                  Copy 100 characters (1 minute) solidly to pass, OR answer 7 of
+                  10 questions correctly.
+                </p>
               </div>
-              <textarea
-                value={copyText}
-                onChange={(e) => setCopyText(e.target.value)}
-                className="w-full h-40 border-2 border-amber-300 bg-amber-50 p-4 font-mono text-lg
-                        focus:border-amber-500 focus:outline-none resize-none"
-                placeholder="Copy the transmission here..."
-              />
-              <p className="font-serif text-xs text-amber-700 mt-2 italic">
-                Copy 100 characters (1 minute) solidly to pass, OR answer 7 of
-                10 questions correctly.
-              </p>
-            </div>
+            )}
 
             {/* Questions */}
-            <div className="bg-white border-2 border-amber-300 p-6 mb-8 shadow-md">
-              <h3 className="font-mono text-sm tracking-widest text-amber-900 mb-6 font-bold">
-                COMPREHENSION QUESTIONS
-              </h3>
+            {(showQuestionsSection || examComplete) && (
+              <div className="bg-white border-2 border-amber-300 p-6 mb-8 shadow-md">
+                <h3 className="font-mono text-sm tracking-widest text-amber-900 mb-6 font-bold">
+                  COMPREHENSION QUESTIONS
+                </h3>
 
-              <div className="space-y-6">
-                {questions.map((q) => {
-                  const options = [
-                    { letter: "A", text: q.option_a },
-                    { letter: "B", text: q.option_b },
-                    { letter: "C", text: q.option_c },
-                    { letter: "D", text: q.option_d },
-                  ];
-                  const isSelected = (letter) => answers[q.id] === letter;
-                  const isCorrect = (letter) => correctAnswers && correctAnswers[q.id] === letter;
-                  const showCorrect = testComplete && passed && correctAnswers;
+                <div className="space-y-6">
+                  {questions.map((q) => {
+                    const options = [
+                      { letter: "A", text: q.option_a },
+                      { letter: "B", text: q.option_b },
+                      { letter: "C", text: q.option_c },
+                      { letter: "D", text: q.option_d },
+                    ];
+                    const isSelected = (letter) => answers[q.id] === letter;
+                    const isCorrect = (letter) => correctAnswers && correctAnswers[q.id] === letter;
+                    const showCorrect = testComplete && passed && correctAnswers;
 
-                  return (
-                    <div
-                      key={q.id}
-                      className="border-b border-amber-200 pb-6 last:border-0"
-                    >
-                      <p className="font-serif text-amber-900 mb-3">
-                        <span className="font-mono text-amber-600 mr-2 font-medium">
-                          {q.question_number}.
-                        </span>
-                        {q.question_text}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {options.map((opt) => (
-                          <button
-                            key={opt.letter}
-                            onClick={() => !testComplete && handleAnswer(q.id, opt.letter)}
-                            disabled={testComplete}
-                            className={`p-3 text-left font-serif text-sm border-2 transition-all
-                                     ${
-                                       isSelected(opt.letter)
-                                         ? "border-amber-600 bg-amber-100 text-amber-900"
-                                         : "border-amber-300 bg-amber-50 hover:border-amber-500 text-amber-800"
-                                     }
-                                     ${showCorrect && isCorrect(opt.letter) ? "ring-2 ring-green-500" : ""}`}
-                          >
-                            <span className="font-mono text-xs text-amber-600 mr-2 font-medium">
-                              {opt.letter}.
-                            </span>
-                            {opt.text}
-                          </button>
-                        ))}
+                    return (
+                      <div
+                        key={q.id}
+                        className="border-b border-amber-200 pb-6 last:border-0"
+                      >
+                        <p className="font-serif text-amber-900 mb-3">
+                          <span className="font-mono text-amber-600 mr-2 font-medium">
+                            {q.question_number}.
+                          </span>
+                          {q.question_text}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {options.map((opt) => (
+                            <button
+                              key={opt.letter}
+                              onClick={() => !testComplete && handleAnswer(q.id, opt.letter)}
+                              disabled={testComplete}
+                              className={`p-3 text-left font-serif text-sm border-2 transition-all
+                                       ${
+                                         isSelected(opt.letter)
+                                           ? "border-amber-600 bg-amber-100 text-amber-900"
+                                           : "border-amber-300 bg-amber-50 hover:border-amber-500 text-amber-800"
+                                       }
+                                       ${showCorrect && isCorrect(opt.letter) ? "ring-2 ring-green-500" : ""}`}
+                            >
+                              <span className="font-mono text-xs text-amber-600 mr-2 font-medium">
+                                {opt.letter}.
+                              </span>
+                              {opt.text}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Submit */}
             <div className="text-center">
