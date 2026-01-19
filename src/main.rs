@@ -350,6 +350,12 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await
         .ok();
 
+    // Add segments column to tests table (nullable JSON)
+    sqlx::query("ALTER TABLE tests ADD COLUMN segments TEXT")
+        .execute(pool)
+        .await
+        .ok(); // Ignore error if column exists
+
     // Index for question lookups
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_questions_test_id ON questions(test_id)")
         .execute(pool)
