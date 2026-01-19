@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 2026-01-18
+
+### Fixed
+- Environment variable config parsing now uses double underscore separator, fixing admin authentication with KNOWCODE_ADMIN_* variables
+
 ## [0.2.1] - 2026-01-18
 
 ### Fixed
