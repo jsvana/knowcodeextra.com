@@ -267,6 +267,39 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // Create questions table
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS questions (
+            id TEXT PRIMARY KEY,
+            test_id TEXT NOT NULL,
+            question_number INTEGER NOT NULL,
+            question_text TEXT NOT NULL,
+            option_a TEXT NOT NULL,
+            option_b TEXT NOT NULL,
+            option_c TEXT NOT NULL,
+            option_d TEXT NOT NULL,
+            correct_option TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (test_id) REFERENCES tests(id),
+            UNIQUE(test_id, question_number)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Add test_id to attempts table (nullable for backwards compat)
+    sqlx::query("ALTER TABLE attempts ADD COLUMN test_id TEXT")
+        .execute(pool)
+        .await
+        .ok();
+
+    // Index for question lookups
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_questions_test_id ON questions(test_id)")
+        .execute(pool)
+        .await?;
+
     // Create indexes for common queries
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_callsign ON attempts(callsign)")
         .execute(pool)
