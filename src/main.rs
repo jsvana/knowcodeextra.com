@@ -215,7 +215,16 @@ pub struct CallsignQuery {
 }
 
 // Test data types (for public API - no correct answers)
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Segment {
+    pub name: String,
+    pub start_time: i32,
+    pub end_time: Option<i32>, // None means until audio ends
+    pub enables_copy: bool,
+    pub enables_questions: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Test {
     pub id: String,
     pub title: String,
@@ -225,6 +234,36 @@ pub struct Test {
     pub passing_score: i32,
     pub active: bool,
     pub created_at: DateTime<Utc>,
+    pub segments: Option<Vec<Segment>>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct TestRow {
+    pub id: String,
+    pub title: String,
+    pub speed_wpm: i32,
+    pub year: String,
+    pub audio_url: String,
+    pub passing_score: i32,
+    pub active: bool,
+    pub created_at: DateTime<Utc>,
+    pub segments: Option<String>, // JSON string from DB
+}
+
+impl From<TestRow> for Test {
+    fn from(row: TestRow) -> Self {
+        Test {
+            id: row.id,
+            title: row.title,
+            speed_wpm: row.speed_wpm,
+            year: row.year,
+            audio_url: row.audio_url,
+            passing_score: row.passing_score,
+            active: row.active,
+            created_at: row.created_at,
+            segments: row.segments.and_then(|s| serde_json::from_str(&s).ok()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, FromRow)]
