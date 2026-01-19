@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.4] - 2026-01-18
+
+### Fixed
+- Simplified config loading to directly override from env vars after deserialize
+
 ## [0.2.3] - 2026-01-18
 
 ### Fixed
