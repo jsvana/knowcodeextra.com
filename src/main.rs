@@ -721,6 +721,21 @@ async fn get_stats(
     Ok(Json(stats))
 }
 
+/// GET /api/tests - List active tests
+async fn list_tests(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let tests: Vec<Test> = sqlx::query_as(
+        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at
+         FROM tests WHERE active = 1 ORDER BY speed_wpm"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(tests))
+}
+
 /// Health check endpoint
 async fn health() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -828,6 +843,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/attempts/:callsign", get(get_callsign_attempts))
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
+        .route("/api/tests", get(list_tests))
         .route(
             "/api/certificate/:attempt_id",
             get(certificate::get_certificate_svg),
