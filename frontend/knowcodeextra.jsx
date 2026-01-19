@@ -217,8 +217,8 @@ export default function KnowCodeExtra() {
     }
   };
 
-  const handleAnswer = (questionIndex, answerIndex) => {
-    setAnswers((prev) => ({ ...prev, [questionIndex]: answerIndex }));
+  const handleAnswer = (questionId, option) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: option })); // option is "A", "B", "C", or "D"
   };
 
   // Show abandon confirmation modal
@@ -264,45 +264,54 @@ export default function KnowCodeExtra() {
     setModal({ isOpen: false, type: null, testKey: null });
   };
 
-  const calculateResults = async () => {
-    let correct = 0;
-    questions.forEach((q, i) => {
-      if (answers[i] === q.correct_answer) correct++;
-    });
-
-    const copyChars = copyText.replace(/\s/g, "").length;
-    const passedQuestions = correct >= 7;
-    const passedCopy = copyChars >= 100;
-    const didPass = passedQuestions || passedCopy;
-
-    setScore({ correct, total: 10, copyChars });
-    setPassed(didPass);
-    setTestComplete(true);
-    setIsSubmitting(true);
-
-    // Submit to API
-    const result = await submitAttempt({
-      callsign: userCall,
-      test_speed: currentTest.speed_wpm,
-      questions_correct: correct,
-      copy_chars: copyChars,
-      passed: didPass,
-      audio_progress: audioProgress,
-    });
-
-    if (result?.blocked) {
-      setBlockedMessage(result.message);
-      setView("blocked");
-      setIsSubmitting(false);
+  const handleSubmit = async () => {
+    if (!userCall.trim()) {
+      alert('Please enter your callsign');
       return;
     }
 
-    if (result?.success && result.data?.certificate_number) {
-      setCertificateNumber(result.data.certificate_number);
-    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/tests/${selectedTest}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callsign: userCall.trim().toUpperCase(),
+          answers: answers, // { questionId: "A", ... }
+          copy_text: copyText || null,
+          audio_progress: audioProgress,
+        }),
+      });
 
-    setIsSubmitting(false);
-    setView("results");
+      if (!res.ok) {
+        const error = await res.text();
+        if (res.status === 400) {
+          setBlockedMessage(error);
+          setView("blocked");
+          return;
+        }
+        throw new Error(error);
+      }
+
+      const result = await res.json();
+      setScore({ correct: result.score, total: questions.length, copyChars: copyText.replace(/\s/g, "").length });
+      setPassed(result.passed);
+      setTestComplete(true);
+
+      if (result.passed && result.correct_answers) {
+        setCorrectAnswers(result.correct_answers);
+      }
+      if (result.certificate_id) {
+        setCertificateNumber(result.certificate_id);
+      }
+
+      setView('results');
+    } catch (err) {
+      console.error('Submit failed:', err);
+      alert('Failed to submit test: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatDate = () => {
@@ -796,45 +805,53 @@ export default function KnowCodeExtra() {
               </h3>
 
               <div className="space-y-6">
-                {questions.map((q, qi) => (
-                  <div
-                    key={qi}
-                    className="border-b border-amber-200 pb-6 last:border-0"
-                  >
-                    <p className="font-serif text-amber-900 mb-3">
-                      <span className="font-mono text-amber-600 mr-2 font-medium">
-                        {qi + 1}.
-                      </span>
-                      {q.question}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {q.options.map((opt, oi) => (
-                        <button
-                          key={oi}
-                          onClick={() => handleAnswer(qi, oi)}
-                          className={`p-3 text-left font-serif text-sm border-2 transition-all
-                                   ${
-                                     answers[qi] === oi
-                                       ? "border-amber-600 bg-amber-100 text-amber-900"
-                                       : "border-amber-300 bg-amber-50 hover:border-amber-500 text-amber-800"
-                                   }`}
-                        >
-                          <span className="font-mono text-xs text-amber-600 mr-2 font-medium">
-                            {String.fromCharCode(65 + oi)}.
-                          </span>
-                          {opt}
-                        </button>
-                      ))}
+                {questions.map((q, qi) => {
+                  const options = [
+                    { letter: "A", text: q.option_a },
+                    { letter: "B", text: q.option_b },
+                    { letter: "C", text: q.option_c },
+                    { letter: "D", text: q.option_d },
+                  ];
+                  return (
+                    <div
+                      key={q.id}
+                      className="border-b border-amber-200 pb-6 last:border-0"
+                    >
+                      <p className="font-serif text-amber-900 mb-3">
+                        <span className="font-mono text-amber-600 mr-2 font-medium">
+                          {qi + 1}.
+                        </span>
+                        {q.question_text}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {options.map((opt) => (
+                          <button
+                            key={opt.letter}
+                            onClick={() => handleAnswer(q.id, opt.letter)}
+                            className={`p-3 text-left font-serif text-sm border-2 transition-all
+                                     ${
+                                       answers[q.id] === opt.letter
+                                         ? "border-amber-600 bg-amber-100 text-amber-900"
+                                         : "border-amber-300 bg-amber-50 hover:border-amber-500 text-amber-800"
+                                     }`}
+                          >
+                            <span className="font-mono text-xs text-amber-600 mr-2 font-medium">
+                              {opt.letter}.
+                            </span>
+                            {opt.text}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             {/* Submit */}
             <div className="text-center">
               <button
-                onClick={calculateResults}
+                onClick={handleSubmit}
                 className="bg-amber-900 text-amber-50 px-12 py-4 font-mono tracking-widest
                         hover:bg-amber-800 transition-all shadow-lg hover:shadow-xl"
               >
