@@ -358,6 +358,26 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await?;
 
+    // Seed default test if none exists
+    let test_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tests")
+        .fetch_one(pool)
+        .await?;
+
+    if test_count.0 == 0 {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            r#"
+            INSERT INTO tests (id, title, speed_wpm, year, audio_url, passing_score, active, created_at)
+            VALUES ('20wpm-extra-1991', 'Extra Class', 20, '1991', '/audio/20wpm/test.mp3', 7, 1, ?)
+            "#,
+        )
+        .bind(&now)
+        .execute(pool)
+        .await?;
+
+        tracing::info!("Seeded default test: 20wpm-extra-1991");
+    }
+
     Ok(())
 }
 
