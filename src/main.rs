@@ -766,6 +766,122 @@ async fn get_test_questions(
     Ok(Json(questions))
 }
 
+/// POST /api/tests/:test_id/submit - Submit and validate test answers
+async fn submit_test(
+    State(state): State<Arc<AppState>>,
+    Path(test_id): Path<String>,
+    Json(submission): Json<TestSubmission>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let callsign = submission.callsign.trim().to_uppercase();
+    if callsign.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Callsign is required".to_string()));
+    }
+
+    // Get test info
+    let test: Option<Test> = sqlx::query_as(
+        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at
+         FROM tests WHERE id = ? AND active = 1"
+    )
+    .bind(&test_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let test = test.ok_or((StatusCode::NOT_FOUND, "Test not found".to_string()))?;
+
+    // Rate limit: once per day
+    let today_attempt: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM attempts WHERE callsign = ? AND date(created_at) = date('now') LIMIT 1",
+    )
+    .bind(&callsign)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if today_attempt.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "You can only attempt the test once per day. Try again tomorrow!".to_string(),
+        ));
+    }
+
+    // Check for existing pending/approved attempt
+    let existing: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM attempts WHERE callsign = ? AND validation_status IN ('pending', 'approved') LIMIT 1"
+    )
+    .bind(&callsign)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if existing.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "You already have a passed attempt awaiting validation.".to_string(),
+        ));
+    }
+
+    // Get questions with correct answers for validation
+    let questions: Vec<QuestionWithAnswer> = sqlx::query_as(
+        "SELECT id, question_number, question_text, option_a, option_b, option_c, option_d, correct_option
+         FROM questions WHERE test_id = ? ORDER BY question_number"
+    )
+    .bind(&test_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Calculate score
+    let mut correct_count = 0;
+    let mut correct_answers: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    for q in &questions {
+        correct_answers.insert(q.id.clone(), q.correct_option.clone());
+        if let Some(user_answer) = submission.answers.get(&q.id) {
+            if user_answer.to_uppercase() == q.correct_option {
+                correct_count += 1;
+            }
+        }
+    }
+
+    let copy_chars = submission.copy_text.as_ref().map(|t| t.len() as i32).unwrap_or(0);
+    let passed = correct_count >= test.passing_score || copy_chars >= 100;
+
+    // Record attempt
+    let id = Uuid::new_v4().to_string();
+    let now = Utc::now();
+
+    sqlx::query(
+        r#"
+        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at, validation_status, audio_progress, test_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(&id)
+    .bind(&callsign)
+    .bind(test.speed_wpm)
+    .bind(correct_count)
+    .bind(copy_chars)
+    .bind(passed)
+    .bind(now.to_rfc3339())
+    .bind(if passed { Some("pending") } else { None::<&str> })
+    .bind(submission.audio_progress)
+    .bind(&test_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let response = TestSubmissionResponse {
+        passed,
+        score: correct_count,
+        passing_score: test.passing_score,
+        correct_answers: if passed { Some(correct_answers) } else { None },
+        certificate_id: if passed { Some(id) } else { None },
+    };
+
+    Ok(Json(response))
+}
+
 /// Health check endpoint
 async fn health() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -875,6 +991,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/stats", get(get_stats))
         .route("/api/tests", get(list_tests))
         .route("/api/tests/:test_id/questions", get(get_test_questions))
+        .route("/api/tests/:test_id/submit", post(submit_test))
         .route(
             "/api/certificate/:attempt_id",
             get(certificate::get_certificate_svg),
