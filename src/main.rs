@@ -973,6 +973,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route("/search", get(admin::search_attempts))
         .route("/settings", get(admin::get_settings))
+        .route("/tests", get(admin::list_tests_admin))
+        .route("/tests", post(admin::create_test))
+        .route("/tests/:id", axum::routing::put(admin::update_test))
+        .route("/tests/:id", axum::routing::delete(admin::delete_test))
+        .route("/tests/:test_id/questions", get(admin::list_questions_admin))
+        .route("/tests/:test_id/questions", post(admin::create_question))
+        .route("/questions/:id", axum::routing::put(admin::update_question))
+        .route("/questions/:id", axum::routing::delete(admin::delete_question))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             jwt::require_admin_auth,
