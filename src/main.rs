@@ -98,7 +98,7 @@ impl Config {
             // Layer on environment variables (prefix KNOWCODE_)
             .add_source(
                 config::Environment::with_prefix("KNOWCODE")
-                    .separator("_")
+                    .separator("__")
                     .try_parsing(true),
             )
             // Legacy env var support
