@@ -1,0 +1,5 @@
+start-1:02 - intro
+1:02-2:06 - practice
+2:06-3:41 - instructions
+3:41-8:51 - test
+8:51-end - outro
