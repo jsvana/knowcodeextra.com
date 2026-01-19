@@ -2625,6 +2625,361 @@ function AdminSettings() {
   );
 }
 
+// Question Form Component for creating/editing questions
+function QuestionForm({ question, onSave, onCancel }) {
+  const [formData, setFormData] = useState({
+    question_number: question?.question_number || "",
+    question_text: question?.question_text || "",
+    option_a: question?.option_a || "",
+    option_b: question?.option_b || "",
+    option_c: question?.option_c || "",
+    option_d: question?.option_d || "",
+    correct_option: question?.correct_option || "A",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        ...formData,
+        question_number: parseInt(formData.question_number, 10),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="font-mono text-xs text-amber-700 block mb-1">
+          QUESTION NUMBER
+        </label>
+        <input
+          type="number"
+          value={formData.question_number}
+          onChange={(e) => handleChange("question_number", e.target.value)}
+          className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none"
+          required
+          min="1"
+        />
+      </div>
+
+      <div>
+        <label className="font-mono text-xs text-amber-700 block mb-1">
+          QUESTION TEXT
+        </label>
+        <textarea
+          value={formData.question_text}
+          onChange={(e) => handleChange("question_text", e.target.value)}
+          className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none resize-y"
+          rows={3}
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="font-mono text-xs text-amber-700 block mb-1">
+            OPTION A
+          </label>
+          <input
+            type="text"
+            value={formData.option_a}
+            onChange={(e) => handleChange("option_a", e.target.value)}
+            className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none"
+            required
+          />
+        </div>
+        <div>
+          <label className="font-mono text-xs text-amber-700 block mb-1">
+            OPTION B
+          </label>
+          <input
+            type="text"
+            value={formData.option_b}
+            onChange={(e) => handleChange("option_b", e.target.value)}
+            className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none"
+            required
+          />
+        </div>
+        <div>
+          <label className="font-mono text-xs text-amber-700 block mb-1">
+            OPTION C
+          </label>
+          <input
+            type="text"
+            value={formData.option_c}
+            onChange={(e) => handleChange("option_c", e.target.value)}
+            className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none"
+            required
+          />
+        </div>
+        <div>
+          <label className="font-mono text-xs text-amber-700 block mb-1">
+            OPTION D
+          </label>
+          <input
+            type="text"
+            value={formData.option_d}
+            onChange={(e) => handleChange("option_d", e.target.value)}
+            className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none"
+            required
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="font-mono text-xs text-amber-700 block mb-1">
+          CORRECT OPTION
+        </label>
+        <select
+          value={formData.correct_option}
+          onChange={(e) => handleChange("correct_option", e.target.value)}
+          className="w-full border-2 border-amber-300 px-3 py-2 font-mono text-amber-900 focus:border-amber-500 focus:outline-none bg-white"
+        >
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+          <option value="D">D</option>
+        </select>
+      </div>
+
+      <div className="flex gap-4 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-4 py-3 font-mono text-sm tracking-widest border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 px-4 py-3 font-mono text-sm tracking-widest bg-amber-700 text-amber-50 hover:bg-amber-800 transition-all disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Question Editor Component for managing test questions
+function QuestionEditor({ testId, onClose }) {
+  const { adminFetch } = useAdminAuth();
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
+
+  const fetchQuestions = async () => {
+    try {
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/tests/${testId}/questions`
+      );
+      if (!response.ok) throw new Error("Failed to fetch questions");
+      const data = await response.json();
+      setQuestions(data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [testId]);
+
+  const handleSaveNew = async (questionData) => {
+    try {
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/tests/${testId}/questions`,
+        {
+          method: "POST",
+          body: JSON.stringify(questionData),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to create question");
+      setIsAdding(false);
+      await fetchQuestions();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleSaveEdit = async (questionData) => {
+    try {
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/questions/${editingQuestion.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(questionData),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update question");
+      setEditingQuestion(null);
+      await fetchQuestions();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDelete = async (questionId) => {
+    if (!confirm("Are you sure you want to delete this question?")) return;
+    try {
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/questions/${questionId}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!response.ok) throw new Error("Failed to delete question");
+      await fetchQuestions();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative bg-amber-50 border-4 border-amber-800 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Corner ornaments */}
+        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-600" />
+        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-600" />
+        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-600" />
+        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-600" />
+
+        {/* Header */}
+        <div className="bg-amber-900 text-amber-50 px-6 py-4 flex items-center justify-between">
+          <h2 className="font-mono text-sm tracking-widest">
+            QUESTION EDITOR
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-amber-50 hover:text-amber-200 font-mono text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {error && (
+            <div className="bg-red-50 border-2 border-red-300 p-4 mb-4">
+              <p className="text-red-800 font-mono text-sm">{error}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="font-mono text-amber-600">Loading...</div>
+            </div>
+          ) : isAdding ? (
+            <div>
+              <h3 className="font-serif text-xl font-bold text-amber-900 mb-4">
+                Add New Question
+              </h3>
+              <QuestionForm
+                question={null}
+                onSave={handleSaveNew}
+                onCancel={() => setIsAdding(false)}
+              />
+            </div>
+          ) : editingQuestion ? (
+            <div>
+              <h3 className="font-serif text-xl font-bold text-amber-900 mb-4">
+                Edit Question #{editingQuestion.question_number}
+              </h3>
+              <QuestionForm
+                question={editingQuestion}
+                onSave={handleSaveEdit}
+                onCancel={() => setEditingQuestion(null)}
+              />
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-xl font-bold text-amber-900">
+                  Questions ({questions.length})
+                </h3>
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="px-4 py-2 font-mono text-sm tracking-widest bg-amber-700 text-amber-50 hover:bg-amber-800 transition-all"
+                >
+                  Add Question
+                </button>
+              </div>
+
+              {questions.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="font-serif text-amber-800 italic">
+                    No questions yet. Click "Add Question" to create one.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {questions
+                    .sort((a, b) => a.question_number - b.question_number)
+                    .map((q) => (
+                      <div
+                        key={q.id}
+                        className="bg-white border-2 border-amber-300 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-mono text-xs bg-amber-200 text-amber-800 px-2 py-0.5">
+                                Q{q.question_number}
+                              </span>
+                              <span className="font-mono text-xs text-amber-600">
+                                Answer: {q.correct_option}
+                              </span>
+                            </div>
+                            <p className="font-serif text-amber-900 text-sm truncate">
+                              {q.question_text}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              onClick={() => setEditingQuestion(q)}
+                              className="px-3 py-1 font-mono text-xs border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(q.id)}
+                              className="px-3 py-1 font-mono text-xs border-2 border-red-300 text-red-800 hover:border-red-500 hover:bg-red-100 transition-all"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Admin App with Hash-based Routing
 function AdminApp() {
   const { isAuthenticated } = useAdminAuth();
