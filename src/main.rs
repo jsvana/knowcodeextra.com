@@ -252,6 +252,13 @@ struct TestRow {
 
 impl From<TestRow> for Test {
     fn from(row: TestRow) -> Self {
+        let test_id = row.id.clone(); // Clone for use in error logging
+        let segments = row.segments.and_then(|s| {
+            serde_json::from_str(&s).map_err(|e| {
+                tracing::warn!("Failed to parse segments JSON for test {}: {}", test_id, e);
+                e
+            }).ok()
+        });
         Test {
             id: row.id,
             title: row.title,
@@ -261,7 +268,7 @@ impl From<TestRow> for Test {
             passing_score: row.passing_score,
             active: row.active,
             created_at: row.created_at,
-            segments: row.segments.and_then(|s| serde_json::from_str(&s).ok()),
+            segments,
         }
     }
 }
