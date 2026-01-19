@@ -189,17 +189,32 @@ export default function KnowCodeExtra() {
     return { success: false };
   };
 
-  const handleStartTest = (testKey) => {
-    setSelectedTest(testKey);
-    setAnswers({});
-    setCopyText("");
-    setTestComplete(false);
-    setScore(null);
-    setPassed(false);
-    setAudioPlayed(false);
-    setAudioProgress(0);
-    setAudioCurrentTime(0);
-    setView("test");
+  const startTest = async (testId) => {
+    setLoadingTest(true);
+    try {
+      const test = tests.find(t => t.id === testId);
+      setCurrentTest(test);
+
+      const res = await fetch(`${API_BASE}/api/tests/${testId}/questions`);
+      const qs = await res.json();
+      setQuestions(qs);
+      setSelectedTest(testId);
+      setAnswers({});
+      setCorrectAnswers(null);
+      setCopyText("");
+      setTestComplete(false);
+      setScore(null);
+      setPassed(false);
+      setAudioPlayed(false);
+      setAudioProgress(0);
+      setAudioCurrentTime(0);
+      setView('test');
+    } catch (err) {
+      console.error('Failed to fetch questions:', err);
+      alert('Failed to load test questions');
+    } finally {
+      setLoadingTest(false);
+    }
   };
 
   const handleAnswer = (questionIndex, answerIndex) => {
@@ -214,12 +229,11 @@ export default function KnowCodeExtra() {
   // Actually abandon the test
   const confirmAbandon = async () => {
     setModal({ isOpen: false, type: null, testKey: null });
-    if (selectedTest) {
-      const test = testData[selectedTest];
+    if (currentTest) {
       // Log a failed attempt
       await submitAttempt({
         callsign: userCall,
-        test_speed: test.speed,
+        test_speed: currentTest.speed_wpm,
         questions_correct: 0,
         copy_chars: 0,
         passed: false,
@@ -240,9 +254,9 @@ export default function KnowCodeExtra() {
 
   // Actually start the test
   const confirmStartTest = () => {
-    const testKey = modal.testKey;
+    const testId = modal.testKey;
     setModal({ isOpen: false, type: null, testKey: null });
-    handleStartTest(testKey);
+    startTest(testId);
   };
 
   // Close modal without action
@@ -251,10 +265,9 @@ export default function KnowCodeExtra() {
   };
 
   const calculateResults = async () => {
-    const test = testData[selectedTest];
     let correct = 0;
-    test.questions.forEach((q, i) => {
-      if (answers[i] === q.answer) correct++;
+    questions.forEach((q, i) => {
+      if (answers[i] === q.correct_answer) correct++;
     });
 
     const copyChars = copyText.replace(/\s/g, "").length;
@@ -270,7 +283,7 @@ export default function KnowCodeExtra() {
     // Submit to API
     const result = await submitAttempt({
       callsign: userCall,
-      test_speed: test.speed,
+      test_speed: currentTest.speed_wpm,
       questions_correct: correct,
       copy_chars: copyChars,
       passed: didPass,
@@ -520,15 +533,15 @@ export default function KnowCodeExtra() {
 
             {/* Test Cards */}
             <div className="grid md:grid-cols-3 gap-6">
-              {Object.entries(testData).map(([key, test]) => (
+              {tests.map((test) => (
                 <button
-                  key={key}
-                  onClick={() => handleStartClick(key)}
-                  disabled={!userCall.trim()}
+                  key={test.id}
+                  onClick={() => handleStartClick(test.id)}
+                  disabled={!userCall.trim() || loadingTest}
                   className={`group bg-white border-2 border-amber-300 p-8 text-left
                            transition-all duration-300 relative overflow-hidden shadow-md
                            ${
-                             userCall.trim()
+                             userCall.trim() && !loadingTest
                                ? "hover:border-amber-500 hover:bg-amber-50 hover:shadow-xl cursor-pointer"
                                : "opacity-50 cursor-not-allowed"
                            }`}
@@ -543,7 +556,7 @@ export default function KnowCodeExtra() {
                       {test.year} EXAMINATION
                     </span>
                     <h3 className="font-serif text-3xl font-bold text-amber-900 mb-1">
-                      {test.speed} WPM
+                      {test.speed_wpm} WPM
                     </h3>
                     <p className="font-serif text-amber-700 mb-4">
                       {test.title}
@@ -600,8 +613,6 @@ export default function KnowCodeExtra() {
 
   // Test Page
   if (view === "test") {
-    const test = testData[selectedTest];
-
     return (
       <div className="min-h-screen bg-amber-50 text-stone-800 relative">
         <VintagePattern />
@@ -619,10 +630,10 @@ export default function KnowCodeExtra() {
               </button>
               <div className="text-right">
                 <span className="font-mono text-sm text-amber-600 block font-medium">
-                  {test.title}
+                  {currentTest.title}
                 </span>
                 <span className="font-serif text-2xl font-bold text-amber-900">
-                  {test.speed} WPM
+                  {currentTest.speed_wpm} WPM
                 </span>
               </div>
             </div>
@@ -641,7 +652,7 @@ export default function KnowCodeExtra() {
 
               <audio
                 ref={audioRef}
-                src={test.audioUrl}
+                src={currentTest.audio_url}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => {
@@ -785,7 +796,7 @@ export default function KnowCodeExtra() {
               </h3>
 
               <div className="space-y-6">
-                {test.questions.map((q, qi) => (
+                {questions.map((q, qi) => (
                   <div
                     key={qi}
                     className="border-b border-amber-200 pb-6 last:border-0"
@@ -794,7 +805,7 @@ export default function KnowCodeExtra() {
                       <span className="font-mono text-amber-600 mr-2 font-medium">
                         {qi + 1}.
                       </span>
-                      {q.q}
+                      {q.question}
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       {q.options.map((opt, oi) => (
@@ -851,8 +862,6 @@ export default function KnowCodeExtra() {
 
   // Results Page
   if (view === "results") {
-    const test = testData[selectedTest];
-
     return (
       <div className="min-h-screen bg-amber-50 text-stone-800 relative">
         <VintagePattern />
@@ -886,7 +895,7 @@ export default function KnowCodeExtra() {
               </h1>
 
               <p className="font-serif text-lg text-amber-800 mb-8">
-                {test.speed} WPM {test.title} Code Test
+                {currentTest.speed_wpm} WPM {currentTest.title} Code Test
               </p>
 
               <div className="grid grid-cols-2 gap-6 mb-8">
@@ -946,8 +955,6 @@ export default function KnowCodeExtra() {
 
   // Certificate Page
   if (view === "certificate") {
-    const test = testData[selectedTest];
-
     return (
       <div className="min-h-screen bg-stone-800 py-12 px-6">
         <div className="max-w-4xl mx-auto">
@@ -1008,10 +1015,10 @@ export default function KnowCodeExtra() {
                   className="font-serif text-5xl font-bold text-amber-900"
                   style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 >
-                  {test.speed} WPM
+                  {currentTest.speed_wpm} WPM
                 </p>
                 <p className="font-mono text-sm tracking-widest text-amber-600 mt-2">
-                  {test.title.toUpperCase()} EXAMINATION
+                  {currentTest.title.toUpperCase()} EXAMINATION
                 </p>
               </div>
 
@@ -1036,7 +1043,7 @@ export default function KnowCodeExtra() {
                   </p>
                   <p className="font-mono text-amber-900 text-sm">
                     {certificateNumber ||
-                      `${selectedTest.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`}
+                      `${currentTest.id}-${Date.now().toString(36).toUpperCase()}`}
                   </p>
                 </div>
               </div>
