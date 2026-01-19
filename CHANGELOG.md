@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.3] - 2026-01-18
+
+### Fixed
+- Explicitly map KNOWCODE_ADMIN_* env vars to config fields (fixes admin auth)
+
 ## [0.2.2] - 2026-01-18
 
 ### Fixed
