@@ -39,7 +39,7 @@ pub struct UpdateTestRequest {
     pub active: Option<bool>,
 }
 
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize)]
 pub struct AdminTest {
     pub id: String,
     pub title: String,
@@ -50,6 +50,21 @@ pub struct AdminTest {
     pub active: bool,
     pub created_at: DateTime<Utc>,
     pub question_count: i64,
+    pub segments: Option<Vec<crate::Segment>>,
+}
+
+#[derive(Debug, FromRow)]
+struct AdminTestRow {
+    pub id: String,
+    pub title: String,
+    pub speed_wpm: i32,
+    pub year: String,
+    pub audio_url: String,
+    pub passing_score: i32,
+    pub active: bool,
+    pub created_at: DateTime<Utc>,
+    pub question_count: i64,
+    pub segments: Option<String>,
 }
 
 /// Form data for rejection
@@ -561,9 +576,9 @@ pub async fn regenerate_polo_notes(state: &Arc<crate::AppState>) -> Result<(), S
 pub async fn list_tests_admin(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let tests: Vec<AdminTest> = sqlx::query_as(
+    let rows: Vec<AdminTestRow> = sqlx::query_as(
         r#"
-        SELECT t.id, t.title, t.speed_wpm, t.year, t.audio_url, t.passing_score, t.active, t.created_at,
+        SELECT t.id, t.title, t.speed_wpm, t.year, t.audio_url, t.passing_score, t.active, t.created_at, t.segments,
                (SELECT COUNT(*) FROM questions WHERE test_id = t.id) as question_count
         FROM tests t
         ORDER BY t.speed_wpm, t.title
@@ -572,6 +587,27 @@ pub async fn list_tests_admin(
     .fetch_all(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let tests: Vec<AdminTest> = rows.into_iter().map(|row| {
+        let test_id = row.id.clone();
+        AdminTest {
+            id: row.id,
+            title: row.title,
+            speed_wpm: row.speed_wpm,
+            year: row.year,
+            audio_url: row.audio_url,
+            passing_score: row.passing_score,
+            active: row.active,
+            created_at: row.created_at,
+            question_count: row.question_count,
+            segments: row.segments.and_then(|s| {
+                serde_json::from_str(&s).map_err(|e| {
+                    tracing::warn!("Failed to parse segments JSON for test {}: {}", test_id, e);
+                    e
+                }).ok()
+            }),
+        }
+    }).collect();
 
     Ok(Json(tests))
 }
