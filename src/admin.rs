@@ -37,6 +37,7 @@ pub struct UpdateTestRequest {
     pub audio_url: Option<String>,
     pub passing_score: Option<i32>,
     pub active: Option<bool>,
+    pub segments: Option<Vec<crate::Segment>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -673,6 +674,12 @@ pub async fn update_test(
         } else {
             "0".to_string()
         });
+    }
+    if let Some(ref segments) = req.segments {
+        let segments_json = serde_json::to_string(segments)
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid segments: {}", e)))?;
+        updates.push("segments = ?");
+        bindings.push(segments_json);
     }
 
     if updates.is_empty() {
