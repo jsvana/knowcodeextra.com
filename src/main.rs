@@ -770,13 +770,15 @@ async fn get_stats(
 async fn list_tests(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let tests: Vec<Test> = sqlx::query_as(
-        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at
+    let rows: Vec<TestRow> = sqlx::query_as(
+        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at, segments
          FROM tests WHERE active = 1 ORDER BY speed_wpm"
     )
     .fetch_all(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let tests: Vec<Test> = rows.into_iter().map(Test::from).collect();
 
     Ok(Json(tests))
 }
@@ -823,8 +825,8 @@ async fn submit_test(
     }
 
     // Get test info
-    let test: Option<Test> = sqlx::query_as(
-        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at
+    let row: Option<TestRow> = sqlx::query_as(
+        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at, segments
          FROM tests WHERE id = ? AND active = 1"
     )
     .bind(&test_id)
@@ -832,7 +834,7 @@ async fn submit_test(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let test = test.ok_or((StatusCode::NOT_FOUND, "Test not found".to_string()))?;
+    let test = row.map(Test::from).ok_or((StatusCode::NOT_FOUND, "Test not found".to_string()))?;
 
     // Rate limit: once per day
     let today_attempt: Option<(String,)> = sqlx::query_as(
