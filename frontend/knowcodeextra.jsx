@@ -9,67 +9,6 @@ const audioSegments = [
   { name: "Outro", start: 531, end: Infinity, color: "bg-amber-600" },
 ];
 
-// Test data - 20 WPM Extra Class examination only
-const testData = {
-  "20wpm": {
-    speed: 20,
-    title: "Extra Class",
-    year: "1991",
-    audioUrl: "/audio/20wpm/test.mp3",
-    questions: [
-      {
-        q: "What was the callsign of the first station?",
-        options: ["W1AW", "K3ABC", "N0XYZ", "WB4WXD"],
-        answer: 0,
-      },
-      {
-        q: "What frequency was mentioned?",
-        options: ["7.040 MHz", "14.060 MHz", "3.560 MHz", "21.040 MHz"],
-        answer: 1,
-      },
-      {
-        q: "What RST was given?",
-        options: ["599", "559", "579", "449"],
-        answer: 2,
-      },
-      {
-        q: "What QTH was given?",
-        options: ["Texas", "Ohio", "California", "Florida"],
-        answer: 0,
-      },
-      {
-        q: "What antenna was in use?",
-        options: ["Dipole", "Yagi", "Vertical", "Loop"],
-        answer: 0,
-      },
-      {
-        q: "What was the OP's name?",
-        options: ["John", "Mike", "Dave", "Bill"],
-        answer: 2,
-      },
-      {
-        q: "What band was mentioned?",
-        options: ["40 meters", "20 meters", "80 meters", "15 meters"],
-        answer: 1,
-      },
-      {
-        q: "What PWR was reported?",
-        options: ["5 watts", "100 watts", "50 watts", "1000 watts"],
-        answer: 1,
-      },
-      {
-        q: "What WX was mentioned?",
-        options: ["Sunny", "Rainy", "Cloudy", "Snowy"],
-        answer: 0,
-      },
-      {
-        q: "What time was given?",
-        options: ["Morning", "Afternoon", "Evening", "Night"],
-        answer: 2,
-      },
-    ],
-  },
-};
 
 // Morse code for decorative elements
 const morsePatterns = {
@@ -188,6 +127,20 @@ export default function KnowCodeExtra() {
     testKey: null,
   });
   const audioRef = useRef(null);
+
+  const [tests, setTests] = useState([]);
+  const [currentTest, setCurrentTest] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [correctAnswers, setCorrectAnswers] = useState(null);
+  const [loadingTest, setLoadingTest] = useState(false);
+
+  // Fetch available tests on mount
+  useEffect(() => {
+    fetch(`${API_BASE}/api/tests`)
+      .then(res => res.json())
+      .then(data => setTests(data))
+      .catch(err => console.error('Failed to fetch tests:', err));
+  }, []);
 
   // Fetch leaderboard data
   const fetchLeaderboard = async () => {
