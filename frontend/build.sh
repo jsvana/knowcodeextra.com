@@ -15,7 +15,7 @@ mkdir -p ../static
 
 # Bundle JSX
 # Use classic JSX transform to work with CDN-loaded React globals
-npx esbuild knowcodeextra.jsx \
+npx esbuild index.jsx \
     --bundle \
     --outfile=../static/app.js \
     --minify \
