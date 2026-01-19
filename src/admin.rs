@@ -10,6 +10,48 @@ use sqlx::FromRow;
 use std::sync::Arc;
 use tokio::fs;
 
+// ============================================================================
+// ADMIN TEST MANAGEMENT TYPES
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+pub struct CreateTestRequest {
+    pub id: String,
+    pub title: String,
+    pub speed_wpm: i32,
+    pub year: String,
+    pub audio_url: String,
+    #[serde(default = "default_passing_score")]
+    pub passing_score: i32,
+}
+
+fn default_passing_score() -> i32 {
+    7
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTestRequest {
+    pub title: Option<String>,
+    pub speed_wpm: Option<i32>,
+    pub year: Option<String>,
+    pub audio_url: Option<String>,
+    pub passing_score: Option<i32>,
+    pub active: Option<bool>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct AdminTest {
+    pub id: String,
+    pub title: String,
+    pub speed_wpm: i32,
+    pub year: String,
+    pub audio_url: String,
+    pub passing_score: i32,
+    pub active: bool,
+    pub created_at: DateTime<Utc>,
+    pub question_count: i64,
+}
+
 /// Form data for rejection
 #[derive(Deserialize)]
 pub struct RejectForm {
@@ -509,4 +551,133 @@ pub async fn regenerate_polo_notes(state: &Arc<crate::AppState>) -> Result<(), S
 
     tracing::info!("Regenerated PoLo notes file at {}", file_path);
     Ok(())
+}
+
+// ============================================================================
+// ADMIN TEST CRUD ENDPOINTS
+// ============================================================================
+
+/// GET /api/admin/tests - List all tests (including inactive)
+pub async fn list_tests_admin(
+    State(state): State<Arc<crate::AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let tests: Vec<AdminTest> = sqlx::query_as(
+        r#"
+        SELECT t.id, t.title, t.speed_wpm, t.year, t.audio_url, t.passing_score, t.active, t.created_at,
+               (SELECT COUNT(*) FROM questions WHERE test_id = t.id) as question_count
+        FROM tests t
+        ORDER BY t.speed_wpm, t.title
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(tests))
+}
+
+/// POST /api/admin/tests - Create new test
+pub async fn create_test(
+    State(state): State<Arc<crate::AppState>>,
+    Json(req): Json<CreateTestRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let now = chrono::Utc::now();
+
+    sqlx::query(
+        "INSERT INTO tests (id, title, speed_wpm, year, audio_url, passing_score, active, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
+    )
+    .bind(&req.id)
+    .bind(&req.title)
+    .bind(req.speed_wpm)
+    .bind(&req.year)
+    .bind(&req.audio_url)
+    .bind(req.passing_score)
+    .bind(now.to_rfc3339())
+    .execute(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "id": req.id })))
+}
+
+/// PUT /api/admin/tests/:id - Update test
+pub async fn update_test(
+    State(state): State<Arc<crate::AppState>>,
+    Path(test_id): Path<String>,
+    Json(req): Json<UpdateTestRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let mut updates = Vec::new();
+    let mut bindings: Vec<String> = Vec::new();
+
+    if let Some(ref title) = req.title {
+        updates.push("title = ?");
+        bindings.push(title.clone());
+    }
+    if let Some(speed) = req.speed_wpm {
+        updates.push("speed_wpm = ?");
+        bindings.push(speed.to_string());
+    }
+    if let Some(ref year) = req.year {
+        updates.push("year = ?");
+        bindings.push(year.clone());
+    }
+    if let Some(ref url) = req.audio_url {
+        updates.push("audio_url = ?");
+        bindings.push(url.clone());
+    }
+    if let Some(score) = req.passing_score {
+        updates.push("passing_score = ?");
+        bindings.push(score.to_string());
+    }
+    if let Some(active) = req.active {
+        updates.push("active = ?");
+        bindings.push(if active {
+            "1".to_string()
+        } else {
+            "0".to_string()
+        });
+    }
+
+    if updates.is_empty() {
+        return Ok(Json(
+            serde_json::json!({ "success": true, "updated": false }),
+        ));
+    }
+
+    let query = format!("UPDATE tests SET {} WHERE id = ?", updates.join(", "));
+    let mut q = sqlx::query(&query);
+    for b in &bindings {
+        q = q.bind(b);
+    }
+    q = q.bind(&test_id);
+
+    let result = q
+        .execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err((StatusCode::NOT_FOUND, "Test not found".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// DELETE /api/admin/tests/:id - Deactivate test
+pub async fn delete_test(
+    State(state): State<Arc<crate::AppState>>,
+    Path(test_id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let result = sqlx::query("UPDATE tests SET active = 0 WHERE id = ?")
+        .bind(&test_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err((StatusCode::NOT_FOUND, "Test not found".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }
