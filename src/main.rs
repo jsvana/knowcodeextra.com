@@ -7,6 +7,7 @@ use axum::{
     Json, Router,
 };
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
@@ -17,6 +18,12 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
+
+/// KnowCodeExtra - Historic FCC Morse Code Examination Server
+#[derive(Parser)]
+#[command(name = "knowcodeextra")]
+#[command(version, about, long_about = None)]
+struct Cli {}
 
 mod admin;
 mod certificate;
@@ -1035,6 +1042,9 @@ async fn health() -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse CLI arguments (handles --version, --help)
+    Cli::parse();
+
     // Load .env file first (so env vars are available for config)
     dotenvy::dotenv().ok();
 
