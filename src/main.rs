@@ -994,7 +994,7 @@ async fn submit_test(
     .bind(&callsign)
     .bind(test.speed_wpm)
     .bind(question_score)
-    .bind(consecutive_correct) // Store consecutive_correct as copy_chars for backward compat
+    .bind(submission.copy_text.as_ref().map_or(0, |t| t.len()) as i32) // Store actual character count in copy_chars
     .bind(passed)
     .bind(now.to_rfc3339())
     .bind(if passed { Some("pending") } else { None::<&str> })
