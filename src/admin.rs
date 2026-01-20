@@ -38,6 +38,7 @@ pub struct UpdateTestRequest {
     pub passing_score: Option<i32>,
     pub active: Option<bool>,
     pub segments: Option<Vec<crate::Segment>>,
+    pub expected_copy_text: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,6 +53,7 @@ pub struct AdminTest {
     pub created_at: DateTime<Utc>,
     pub question_count: i64,
     pub segments: Option<Vec<crate::Segment>>,
+    pub expected_copy_text: Option<String>,
 }
 
 #[derive(Debug, FromRow)]
@@ -66,6 +68,7 @@ struct AdminTestRow {
     pub created_at: DateTime<Utc>,
     pub question_count: i64,
     pub segments: Option<String>,
+    pub expected_copy_text: Option<String>,
 }
 
 /// Form data for rejection
@@ -815,7 +818,8 @@ pub async fn list_tests_admin(
     let rows: Vec<AdminTestRow> = sqlx::query_as(
         r#"
         SELECT t.id, t.title, t.speed_wpm, t.year, t.audio_url, t.passing_score, t.active, t.created_at, t.segments,
-               (SELECT COUNT(*) FROM questions WHERE test_id = t.id) as question_count
+               (SELECT COUNT(*) FROM questions WHERE test_id = t.id) as question_count,
+               t.expected_copy_text
         FROM tests t
         ORDER BY t.speed_wpm, t.title
         "#,
@@ -842,6 +846,7 @@ pub async fn list_tests_admin(
                     e
                 }).ok()
             }),
+            expected_copy_text: row.expected_copy_text,
         }
     }).collect();
 
@@ -915,6 +920,10 @@ pub async fn update_test(
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid segments: {}", e)))?;
         updates.push("segments = ?");
         bindings.push(segments_json);
+    }
+    if let Some(ref text) = req.expected_copy_text {
+        updates.push("expected_copy_text = ?");
+        bindings.push(text.clone());
     }
 
     if updates.is_empty() {
