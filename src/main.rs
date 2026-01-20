@@ -1163,7 +1163,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             axum::routing::put(admin::update_prosign)
                 .delete(admin::delete_prosign),
         )
+        .route("/upload-audio", post(admin::upload_audio))
         .route("/attempts", get(admin::list_all_attempts))
+        .route("/settings/email-template", get(admin::get_email_template))
+        .route(
+            "/settings/email-template",
+            axum::routing::put(admin::save_email_template),
+        )
+        .route("/email/generate", post(admin::generate_email))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             jwt::require_admin_auth,
