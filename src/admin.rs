@@ -937,6 +937,14 @@ pub async fn create_prosign(
     State(state): State<Arc<crate::AppState>>,
     Json(req): Json<CreateProsignRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Validate input
+    let prosign = req.prosign.trim().to_uppercase();
+    let alternate = req.alternate.trim().to_uppercase();
+
+    if prosign.is_empty() || alternate.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Prosign and alternate cannot be empty".to_string()));
+    }
+
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now();
 
@@ -944,12 +952,19 @@ pub async fn create_prosign(
         "INSERT INTO prosign_mappings (id, prosign, alternate, created_at) VALUES (?, ?, ?, ?)"
     )
     .bind(&id)
-    .bind(&req.prosign.to_uppercase())
-    .bind(&req.alternate.to_uppercase())
+    .bind(&prosign)
+    .bind(&alternate)
     .bind(now.to_rfc3339())
     .execute(&state.db)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| {
+        // Check for UNIQUE constraint violation (duplicate prosign)
+        if e.to_string().contains("UNIQUE constraint failed") {
+            (StatusCode::CONFLICT, format!("Prosign '{}' already exists", prosign))
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        }
+    })?;
 
     Ok(Json(serde_json::json!({ "success": true, "id": id })))
 }
