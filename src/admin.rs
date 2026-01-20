@@ -1199,6 +1199,52 @@ pub async fn create_prosign(
     Ok(Json(serde_json::json!({ "success": true, "id": id })))
 }
 
+/// PUT /api/admin/prosigns/:id - Update prosign mapping
+pub async fn update_prosign(
+    State(state): State<Arc<crate::AppState>>,
+    Path(prosign_id): Path<String>,
+    Json(req): Json<CreateProsignRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Validate input
+    let prosign = req.prosign.trim().to_uppercase();
+    let alternate = req.alternate.trim().to_uppercase();
+
+    if prosign.is_empty() || alternate.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Prosign and alternate cannot be empty".to_string(),
+        ));
+    }
+
+    let result = sqlx::query(
+        "UPDATE prosign_mappings SET prosign = ?, alternate = ? WHERE id = ?",
+    )
+    .bind(&prosign)
+    .bind(&alternate)
+    .bind(&prosign_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| {
+        if e.to_string().contains("UNIQUE constraint failed") {
+            (
+                StatusCode::CONFLICT,
+                format!("Prosign '{}' already exists", prosign),
+            )
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        }
+    })?;
+
+    if result.rows_affected() == 0 {
+        return Err((
+            StatusCode::NOT_FOUND,
+            "Prosign mapping not found".to_string(),
+        ));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
 /// DELETE /api/admin/prosigns/:id - Delete prosign mapping
 pub async fn delete_prosign(
     State(state): State<Arc<crate::AppState>>,

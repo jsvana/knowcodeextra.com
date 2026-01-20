@@ -550,6 +550,7 @@ export function TestManager() {
   // Prosign state
   const [prosigns, setProsigns] = useState([]);
   const [newProsign, setNewProsign] = useState({ prosign: "", alternate: "" });
+  const [editingProsign, setEditingProsign] = useState(null);
   const [loadingProsigns, setLoadingProsigns] = useState(false);
 
   const fetchTests = useCallback(async () => {
@@ -604,6 +605,25 @@ export function TestManager() {
       if (!response.ok) throw new Error("Failed to delete prosign");
       fetchProsigns();
       setToast({ message: "Prosign deleted", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const handleUpdateProsign = async () => {
+    if (!editingProsign || !editingProsign.prosign || !editingProsign.alternate) return;
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/prosigns/${editingProsign.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          prosign: editingProsign.prosign,
+          alternate: editingProsign.alternate,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to update prosign");
+      setEditingProsign(null);
+      fetchProsigns();
+      setToast({ message: "Prosign updated", type: "success" });
     } catch (err) {
       setToast({ message: err.message, type: "error" });
     }
@@ -737,13 +757,22 @@ export function TestManager() {
                   <p className="font-mono text-xs text-amber-600 mt-1">
                     {test.question_count || 0} question{(test.question_count || 0) !== 1 ? "s" : ""}
                   </p>
+                  {test.expected_copy_text ? (
+                    <p className="font-mono text-xs text-green-700 mt-1 truncate max-w-lg" title={test.expected_copy_text}>
+                      Copy text: {test.expected_copy_text.substring(0, 50)}{test.expected_copy_text.length > 50 ? "..." : ""}
+                    </p>
+                  ) : (
+                    <p className="font-mono text-xs text-red-600 mt-1">
+                      No copy text set
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => setEditingTest(test)}
                     className="px-3 py-1 font-mono text-xs border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
                   >
-                    Edit
+                    Copy Text
                   </button>
                   <button
                     onClick={() => setEditingQuestions(test.id)}
@@ -812,15 +841,59 @@ export function TestManager() {
             <div className="space-y-2">
               {prosigns.map((p) => (
                 <div key={p.id} className="flex items-center justify-between bg-amber-50 px-3 py-2">
-                  <span className="font-mono text-amber-800">
-                    {p.prosign} = {p.alternate}
-                  </span>
-                  <button
-                    onClick={() => handleDeleteProsign(p.id)}
-                    className="text-red-600 hover:text-red-800 font-mono text-sm"
-                  >
-                    Delete
-                  </button>
+                  {editingProsign?.id === p.id ? (
+                    <>
+                      <div className="flex gap-2 items-center flex-1">
+                        <input
+                          type="text"
+                          value={editingProsign.prosign}
+                          onChange={(e) => setEditingProsign({ ...editingProsign, prosign: e.target.value.toUpperCase() })}
+                          className="border-2 border-amber-300 px-2 py-1 font-mono text-sm w-20"
+                        />
+                        <span className="font-mono text-amber-600">=</span>
+                        <input
+                          type="text"
+                          value={editingProsign.alternate}
+                          onChange={(e) => setEditingProsign({ ...editingProsign, alternate: e.target.value.toUpperCase() })}
+                          className="border-2 border-amber-300 px-2 py-1 font-mono text-sm w-16"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleUpdateProsign}
+                          className="text-green-600 hover:text-green-800 font-mono text-sm"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingProsign(null)}
+                          className="text-gray-600 hover:text-gray-800 font-mono text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-mono text-amber-800">
+                        {p.prosign} = {p.alternate}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingProsign({ id: p.id, prosign: p.prosign, alternate: p.alternate })}
+                          className="text-amber-600 hover:text-amber-800 font-mono text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProsign(p.id)}
+                          className="text-red-600 hover:text-red-800 font-mono text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -861,7 +934,7 @@ export function TestManager() {
             {/* Header */}
             <div className="bg-amber-900 text-amber-50 px-6 py-4 flex items-center justify-between">
               <h2 className="font-mono text-sm tracking-widest">
-                EDIT TEST: {editingTest.title || `Test ${editingTest.id}`}
+                COPY TEXT: {editingTest.title || `Test ${editingTest.id}`}
               </h2>
               <button
                 onClick={() => setEditingTest(null)}
