@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 mod admin;
 mod certificate;
+mod grading;
 mod jwt;
 mod qrz;
 
