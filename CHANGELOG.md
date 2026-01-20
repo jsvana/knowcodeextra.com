@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.2] - 2026-01-19
+
+### Fixed
+- Include all JSX files in Tailwind CSS build (fixes admin portal styling)
+
 ## [0.3.1] - 2026-01-19
 
 ### Changed
