@@ -235,6 +235,89 @@ export function AdminSearch() {
   );
 }
 
+// Email Template Editor Component
+function EmailTemplateEditor() {
+  const { adminFetch } = useAdminAuth();
+  const [template, setTemplate] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    const fetchTemplate = async () => {
+      try {
+        const response = await adminFetch(`${API_BASE}/api/admin/settings/email-template`);
+        if (!response.ok) throw new Error("Failed to fetch template");
+        const data = await response.json();
+        setTemplate(data.template);
+      } catch (err) {
+        setToast({ message: err.message, type: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTemplate();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/settings/email-template`, {
+        method: "PUT",
+        body: JSON.stringify({ template }),
+      });
+      if (!response.ok) throw new Error("Failed to save template");
+      setToast({ message: "Template saved", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="font-mono text-amber-600">Loading template...</div>;
+  }
+
+  return (
+    <div className="bg-white border-2 border-amber-300 shadow-sm">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <div className="bg-amber-900 text-amber-50 px-6 py-3">
+        <h3 className="font-mono text-sm tracking-widest">EMAIL TEMPLATE</h3>
+      </div>
+      <div className="p-6 space-y-4">
+        <div>
+          <label className="font-mono text-xs text-amber-700 block mb-2">
+            Available placeholders: {"{callsign}"}, {"{member_number}"}, {"{nickname}"}
+          </label>
+          <textarea
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            rows={10}
+            className="w-full border-2 border-amber-300 px-4 py-3 font-mono text-sm
+                     focus:border-amber-500 focus:outline-none resize-y"
+            placeholder="Enter your email template..."
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-amber-900 text-amber-50 px-6 py-2 font-mono text-sm
+                   hover:bg-amber-800 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Template"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Admin Settings Page
 export function AdminSettings() {
   const { adminFetch } = useAdminAuth();
@@ -318,6 +401,7 @@ export function AdminSettings() {
           variables. Changes require a server restart.
         </p>
       </div>
+      <EmailTemplateEditor />
     </div>
   );
 }
