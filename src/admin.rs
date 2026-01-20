@@ -173,6 +173,20 @@ pub struct AttemptHistory {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Serialize, FromRow)]
+pub struct ProsignMapping {
+    pub id: String,
+    pub prosign: String,
+    pub alternate: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateProsignRequest {
+    pub prosign: String,
+    pub alternate: String,
+}
+
 #[derive(Debug, FromRow, Serialize)]
 pub struct ApprovedAttempt {
     id: String,
@@ -895,6 +909,64 @@ pub async fn delete_question(
 
     if result.rows_affected() == 0 {
         return Err((StatusCode::NOT_FOUND, "Question not found".to_string()));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+// ============================================================================
+// PROSIGN MAPPING ENDPOINTS
+// ============================================================================
+
+/// GET /api/admin/prosigns - List all prosign mappings
+pub async fn list_prosigns(
+    State(state): State<Arc<crate::AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let mappings: Vec<ProsignMapping> = sqlx::query_as(
+        "SELECT id, prosign, alternate, created_at FROM prosign_mappings ORDER BY prosign"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(mappings))
+}
+
+/// POST /api/admin/prosigns - Create prosign mapping
+pub async fn create_prosign(
+    State(state): State<Arc<crate::AppState>>,
+    Json(req): Json<CreateProsignRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now();
+
+    sqlx::query(
+        "INSERT INTO prosign_mappings (id, prosign, alternate, created_at) VALUES (?, ?, ?, ?)"
+    )
+    .bind(&id)
+    .bind(&req.prosign.to_uppercase())
+    .bind(&req.alternate.to_uppercase())
+    .bind(now.to_rfc3339())
+    .execute(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "id": id })))
+}
+
+/// DELETE /api/admin/prosigns/:id - Delete prosign mapping
+pub async fn delete_prosign(
+    State(state): State<Arc<crate::AppState>>,
+    Path(prosign_id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let result = sqlx::query("DELETE FROM prosign_mappings WHERE id = ?")
+        .bind(&prosign_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err((StatusCode::NOT_FOUND, "Prosign mapping not found".to_string()));
     }
 
     Ok(Json(serde_json::json!({ "success": true })))
