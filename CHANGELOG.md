@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.0] - 2026-01-19
+
+### Added
+- Grading module with copy text validation and prosign support
+- Prosign mapping system with admin management endpoints
+- All Attempts admin tab with filtering
+- Recent attempts section in admin dashboard and stats
+- Expected copy text field for admin test management
+- Submit button now only appears when audio finished and all questions answered
+- Pass reason display (questions, copy, or both) on results page
+- Consecutive correct character count on results page
+- Prosign usage instructions on test page
+
+### Fixed
+- Use parameterized queries and add input validation in list_all_attempts
+- Input validation and error handling for prosign endpoints
+- Store actual copy_text length in copy_chars column
+
+### Changed
+- Test submission now uses centralized grading module
+- Conditionally show approve/reject buttons only for passing attempts
+
 ## [0.3.2] - 2026-01-19
 
 ### Fixed
