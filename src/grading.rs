@@ -169,6 +169,33 @@ fn count_consecutive_matches(
     count
 }
 
+/// Reason for passing the test
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PassReason {
+    Questions,
+    Copy,
+    Both,
+}
+
+/// Determine if the test is passing and why
+pub fn is_passing(
+    question_score: i32,
+    consecutive_correct: i32,
+    passing_questions: i32,
+    passing_copy_chars: i32,
+) -> (bool, Option<PassReason>) {
+    let questions_pass = question_score >= passing_questions;
+    let copy_pass = consecutive_correct >= passing_copy_chars;
+
+    match (questions_pass, copy_pass) {
+        (true, true) => (true, Some(PassReason::Both)),
+        (true, false) => (true, Some(PassReason::Questions)),
+        (false, true) => (true, Some(PassReason::Copy)),
+        (false, false) => (false, None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -280,5 +307,33 @@ mod tests {
     fn test_find_consecutive_correct_empty() {
         assert_eq!(find_consecutive_correct("", "TEST", &[]), 0);
         assert_eq!(find_consecutive_correct("TEST", "", &[]), 0);
+    }
+
+    #[test]
+    fn test_is_passing_by_questions() {
+        let (passed, reason) = is_passing(7, 50, 7, 100);
+        assert!(passed);
+        assert_eq!(reason, Some(PassReason::Questions));
+    }
+
+    #[test]
+    fn test_is_passing_by_copy() {
+        let (passed, reason) = is_passing(5, 100, 7, 100);
+        assert!(passed);
+        assert_eq!(reason, Some(PassReason::Copy));
+    }
+
+    #[test]
+    fn test_is_passing_by_both() {
+        let (passed, reason) = is_passing(8, 120, 7, 100);
+        assert!(passed);
+        assert_eq!(reason, Some(PassReason::Both));
+    }
+
+    #[test]
+    fn test_is_passing_fail() {
+        let (passed, reason) = is_passing(5, 50, 7, 100);
+        assert!(!passed);
+        assert_eq!(reason, None);
     }
 }
