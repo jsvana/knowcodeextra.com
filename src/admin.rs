@@ -793,7 +793,7 @@ pub async fn regenerate_polo_notes(state: &Arc<crate::AppState>) -> Result<(), S
     for member in members {
         let cert_num = member.certificate_number.unwrap_or(0);
         content.push_str(&format!(
-            "{} 🎉 Know Code Extra #{}\n",
+            "{} 📜 Know Code Extra #{}\n",
             member.callsign, cert_num
         ));
     }

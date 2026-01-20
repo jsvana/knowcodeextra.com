@@ -1036,6 +1036,21 @@ async fn health() -> impl IntoResponse {
     }))
 }
 
+/// Serve members.txt with proper UTF-8 charset
+async fn get_members_txt(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let file_path = format!("{}/members.txt", state.static_dir);
+    let content = tokio::fs::read_to_string(&file_path)
+        .await
+        .map_err(|e| (StatusCode::NOT_FOUND, format!("File not found: {}", e)))?;
+
+    Ok((
+        [(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        content,
+    ))
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -1162,6 +1177,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route("/api/admin/login", post(jwt::login))
         .nest("/api/admin", admin_api)
+        .route("/members.txt", get(get_members_txt))
         // Explicit SPA routes for /admin
         .route_service("/admin", index_file.clone())
         .route_service("/admin/", index_file.clone())
