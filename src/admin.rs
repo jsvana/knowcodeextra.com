@@ -566,57 +566,158 @@ pub async fn list_all_attempts(
     State(state): State<Arc<crate::AppState>>,
     Query(query): Query<AllAttemptsQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let offset = (query.page - 1) * query.per_page;
-
-    // Build dynamic query conditions
-    let mut conditions = Vec::new();
-
-    if let Some(passed) = query.passed {
-        conditions.push(if passed { "passed = 1" } else { "passed = 0" }.to_string());
+    // Validate pagination
+    if query.page < 1 {
+        return Err((StatusCode::BAD_REQUEST, "Page must be >= 1".to_string()));
+    }
+    if query.per_page < 1 || query.per_page > 100 {
+        return Err((StatusCode::BAD_REQUEST, "per_page must be between 1 and 100".to_string()));
     }
 
-    if let Some(ref callsign) = query.callsign {
-        conditions.push(format!("callsign LIKE '%{}%'", callsign.to_uppercase().replace('\'', "''")));
-    }
-
-    if let Some(ref date_from) = query.date_from {
-        conditions.push(format!("date(created_at) >= '{}'", date_from.replace('\'', "''")));
-    }
-
-    if let Some(ref date_to) = query.date_to {
-        conditions.push(format!("date(created_at) <= '{}'", date_to.replace('\'', "''")));
-    }
-
-    let where_clause = if conditions.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", conditions.join(" AND "))
+    let offset = match (query.page - 1).checked_mul(query.per_page) {
+        Some(o) => o,
+        None => return Err((StatusCode::BAD_REQUEST, "Pagination overflow".to_string())),
     };
 
-    // Get total count
-    let count_query = format!("SELECT COUNT(*) FROM attempts {}", where_clause);
-    let total: (i64,) = sqlx::query_as(&count_query)
-        .fetch_one(&state.db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    // Validate date format (YYYY-MM-DD) using chrono parsing
+    if let Some(ref date_from) = query.date_from {
+        if chrono::NaiveDate::parse_from_str(date_from, "%Y-%m-%d").is_err() {
+            return Err((StatusCode::BAD_REQUEST, "date_from must be YYYY-MM-DD format".to_string()));
+        }
+    }
+    if let Some(ref date_to) = query.date_to {
+        if chrono::NaiveDate::parse_from_str(date_to, "%Y-%m-%d").is_err() {
+            return Err((StatusCode::BAD_REQUEST, "date_to must be YYYY-MM-DD format".to_string()));
+        }
+    }
 
-    // Get items
-    let items_query = format!(
-        "SELECT id, callsign, test_speed, questions_correct, copy_chars, consecutive_correct, passed, validation_status, created_at, copy_text
-         FROM attempts {}
-         ORDER BY created_at DESC
-         LIMIT {} OFFSET {}",
-        where_clause, query.per_page, offset
-    );
+    // Build query based on which filters are present
+    // We use a match on the combination of filters to build type-safe queries
+    let (total, items) = match (query.passed, &query.callsign, &query.date_from, &query.date_to) {
+        // No filters
+        (None, None, None, None) => {
+            let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM attempts")
+                .fetch_one(&state.db)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let items: Vec<AttemptListItem> = sqlx::query_as(&items_query)
-        .fetch_all(&state.db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            let items: Vec<AttemptListItem> = sqlx::query_as(
+                "SELECT id, callsign, test_speed, questions_correct, copy_chars, consecutive_correct, passed, validation_status, created_at, copy_text
+                 FROM attempts ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            )
+            .bind(query.per_page)
+            .bind(offset)
+            .fetch_all(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            (total.0, items)
+        }
+        // Only passed filter
+        (Some(passed), None, None, None) => {
+            let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM attempts WHERE passed = ?")
+                .bind(passed)
+                .fetch_one(&state.db)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            let items: Vec<AttemptListItem> = sqlx::query_as(
+                "SELECT id, callsign, test_speed, questions_correct, copy_chars, consecutive_correct, passed, validation_status, created_at, copy_text
+                 FROM attempts WHERE passed = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            )
+            .bind(passed)
+            .bind(query.per_page)
+            .bind(offset)
+            .fetch_all(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            (total.0, items)
+        }
+        // Only callsign filter
+        (None, Some(callsign), None, None) => {
+            let pattern = format!("%{}%", callsign.to_uppercase());
+            let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM attempts WHERE callsign LIKE ?")
+                .bind(&pattern)
+                .fetch_one(&state.db)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            let items: Vec<AttemptListItem> = sqlx::query_as(
+                "SELECT id, callsign, test_speed, questions_correct, copy_chars, consecutive_correct, passed, validation_status, created_at, copy_text
+                 FROM attempts WHERE callsign LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            )
+            .bind(&pattern)
+            .bind(query.per_page)
+            .bind(offset)
+            .fetch_all(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            (total.0, items)
+        }
+        // Default: use dynamic query building for complex filter combinations
+        _ => {
+            // Build conditions with placeholders
+            let mut conditions = Vec::new();
+            let mut bind_values: Vec<String> = Vec::new();
+
+            if let Some(passed) = query.passed {
+                conditions.push(format!("passed = {}", if passed { 1 } else { 0 }));
+            }
+
+            if let Some(ref callsign) = query.callsign {
+                conditions.push("callsign LIKE ?".to_string());
+                bind_values.push(format!("%{}%", callsign.to_uppercase()));
+            }
+
+            if let Some(ref date_from) = query.date_from {
+                conditions.push("date(created_at) >= ?".to_string());
+                bind_values.push(date_from.clone());
+            }
+
+            if let Some(ref date_to) = query.date_to {
+                conditions.push("date(created_at) <= ?".to_string());
+                bind_values.push(date_to.clone());
+            }
+
+            let where_clause = format!("WHERE {}", conditions.join(" AND "));
+
+            // Count query
+            let count_sql = format!("SELECT COUNT(*) FROM attempts {}", where_clause);
+            let mut count_query = sqlx::query_as::<_, (i64,)>(&count_sql);
+            for val in &bind_values {
+                count_query = count_query.bind(val);
+            }
+            let total: (i64,) = count_query
+                .fetch_one(&state.db)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            // Items query
+            let items_sql = format!(
+                "SELECT id, callsign, test_speed, questions_correct, copy_chars, consecutive_correct, passed, validation_status, created_at, copy_text
+                 FROM attempts {} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                where_clause
+            );
+            let mut items_query = sqlx::query_as::<_, AttemptListItem>(&items_sql);
+            for val in &bind_values {
+                items_query = items_query.bind(val);
+            }
+            let items: Vec<AttemptListItem> = items_query
+                .bind(query.per_page)
+                .bind(offset)
+                .fetch_all(&state.db)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+            (total.0, items)
+        }
+    };
 
     Ok(Json(AllAttemptsResponse {
         items,
-        total: total.0,
+        total,
         page: query.page,
         per_page: query.per_page,
     }))
