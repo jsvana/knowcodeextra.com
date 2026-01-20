@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - 2026-01-19
+
+### Added
+- Prosign mapping editing in admin UI (inline edit with save/cancel)
+- Copy text preview in test list (shows status with color coding)
+
+### Changed
+- Renamed test "Edit" button to "Copy Text" for clarity
+
 ## [0.4.0] - 2026-01-19
 
 ### Added
