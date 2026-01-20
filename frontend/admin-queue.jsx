@@ -155,6 +155,10 @@ export function AdminQueue({ onPendingCountChange }) {
   });
   const [rejectNote, setRejectNote] = useState("");
 
+  const isPassing = (item) => {
+    return item.questions_correct >= 7 || (item.consecutive_correct ?? 0) >= 100;
+  };
+
   const fetchQueue = async () => {
     try {
       const response = await adminFetch(`${API_BASE}/api/admin/queue`);
@@ -316,25 +320,33 @@ export function AdminQueue({ onPendingCountChange }) {
                     </button>
                     <div className="flex gap-4 mt-1 font-mono text-sm text-amber-600">
                       <span>{item.questions_correct}/10</span>
-                      <span>{item.copy_chars} chars</span>
+                      <span>{item.consecutive_correct ?? item.copy_chars} consecutive</span>
                       <span>{formatRelativeTime(item.created_at)}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleApprove(item.id)}
-                      className="bg-green-600 text-white px-4 py-2 font-mono text-sm hover:bg-green-700"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() =>
-                        setRejectModal({ isOpen: true, attemptId: item.id })
-                      }
-                      className="bg-red-600 text-white px-4 py-2 font-mono text-sm hover:bg-red-700"
-                    >
-                      Reject
-                    </button>
+                    {isPassing(item) ? (
+                      <>
+                        <button
+                          onClick={() => handleApprove(item.id)}
+                          className="bg-green-600 text-white px-4 py-2 font-mono text-sm hover:bg-green-700"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() =>
+                            setRejectModal({ isOpen: true, attemptId: item.id })
+                          }
+                          className="bg-red-600 text-white px-4 py-2 font-mono text-sm hover:bg-red-700"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <span className="font-mono text-sm text-amber-500 italic">
+                        Not passing
+                      </span>
+                    )}
                   </div>
                 </div>
 
