@@ -197,6 +197,40 @@ pub struct ApprovedAttempt {
     reached_out: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AllAttemptsQuery {
+    #[serde(default = "default_page")]
+    pub page: i32,
+    #[serde(default = "default_per_page")]
+    pub per_page: i32,
+    pub passed: Option<bool>,
+    pub callsign: Option<String>,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct AttemptListItem {
+    pub id: String,
+    pub callsign: String,
+    pub test_speed: i32,
+    pub questions_correct: i32,
+    pub copy_chars: i32,
+    pub consecutive_correct: Option<i32>,
+    pub passed: bool,
+    pub validation_status: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub copy_text: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AllAttemptsResponse {
+    pub items: Vec<AttemptListItem>,
+    pub total: i64,
+    pub page: i32,
+    pub per_page: i32,
+}
+
 // ============================================================================
 // JSON API ENDPOINTS
 // ============================================================================
@@ -525,6 +559,67 @@ pub async fn search_attempts(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(results))
+}
+
+/// GET /api/admin/attempts - List all attempts with filters
+pub async fn list_all_attempts(
+    State(state): State<Arc<crate::AppState>>,
+    Query(query): Query<AllAttemptsQuery>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let offset = (query.page - 1) * query.per_page;
+
+    // Build dynamic query conditions
+    let mut conditions = Vec::new();
+
+    if let Some(passed) = query.passed {
+        conditions.push(if passed { "passed = 1" } else { "passed = 0" }.to_string());
+    }
+
+    if let Some(ref callsign) = query.callsign {
+        conditions.push(format!("callsign LIKE '%{}%'", callsign.to_uppercase().replace('\'', "''")));
+    }
+
+    if let Some(ref date_from) = query.date_from {
+        conditions.push(format!("date(created_at) >= '{}'", date_from.replace('\'', "''")));
+    }
+
+    if let Some(ref date_to) = query.date_to {
+        conditions.push(format!("date(created_at) <= '{}'", date_to.replace('\'', "''")));
+    }
+
+    let where_clause = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
+    };
+
+    // Get total count
+    let count_query = format!("SELECT COUNT(*) FROM attempts {}", where_clause);
+    let total: (i64,) = sqlx::query_as(&count_query)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Get items
+    let items_query = format!(
+        "SELECT id, callsign, test_speed, questions_correct, copy_chars, consecutive_correct, passed, validation_status, created_at, copy_text
+         FROM attempts {}
+         ORDER BY created_at DESC
+         LIMIT {} OFFSET {}",
+        where_clause, query.per_page, offset
+    );
+
+    let items: Vec<AttemptListItem> = sqlx::query_as(&items_query)
+        .fetch_all(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(AllAttemptsResponse {
+        items,
+        total: total.0,
+        page: query.page,
+        per_page: query.per_page,
+    }))
 }
 
 /// GET /api/admin/settings - Get safe config values

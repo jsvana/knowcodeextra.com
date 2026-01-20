@@ -1122,6 +1122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/prosigns", get(admin::list_prosigns))
         .route("/prosigns", post(admin::create_prosign))
         .route("/prosigns/:id", axum::routing::delete(admin::delete_prosign))
+        .route("/attempts", get(admin::list_all_attempts))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             jwt::require_admin_auth,
