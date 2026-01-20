@@ -1,0 +1,7 @@
+# robots.txt for knowcodeextra.com
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
