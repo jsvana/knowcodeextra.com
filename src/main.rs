@@ -419,6 +419,18 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // Create settings table for key-value storage
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
     // Add test_id to attempts table (nullable for backwards compat)
     sqlx::query("ALTER TABLE attempts ADD COLUMN test_id TEXT")
         .execute(pool)
