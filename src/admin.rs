@@ -246,6 +246,31 @@ pub struct AllAttemptsResponse {
 }
 
 // ============================================================================
+// EMAIL TEMPLATE TYPES
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+pub struct EmailTemplateRequest {
+    pub template: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EmailTemplateResponse {
+    pub template: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GenerateEmailRequest {
+    pub member_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GenerateEmailResponse {
+    pub email: String,
+    pub recipient_email: Option<String>,
+}
+
+// ============================================================================
 // JSON API ENDPOINTS
 // ============================================================================
 
@@ -884,6 +909,7 @@ pub async fn update_test(
     Path(test_id): Path<String>,
     Json(req): Json<UpdateTestRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    tracing::info!("update_test called for id {}: {:?}", test_id, req);
     let mut updates = Vec::new();
     let mut bindings: Vec<String> = Vec::new();
 
@@ -1167,6 +1193,7 @@ pub async fn create_prosign(
     State(state): State<Arc<crate::AppState>>,
     Json(req): Json<CreateProsignRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    tracing::info!("create_prosign called: {:?}", req);
     // Validate input
     let prosign = req.prosign.trim().to_uppercase();
     let alternate = req.alternate.trim().to_uppercase();
@@ -1175,10 +1202,14 @@ pub async fn create_prosign(
         return Err((StatusCode::BAD_REQUEST, "Prosign and alternate cannot be empty".to_string()));
     }
 
+    if !prosign.starts_with('<') || !prosign.ends_with('>') {
+        return Err((StatusCode::BAD_REQUEST, "Prosign must be wrapped in <> (e.g., <BT>)".to_string()));
+    }
+
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now();
 
-    sqlx::query(
+    let result = sqlx::query(
         "INSERT INTO prosign_mappings (id, prosign, alternate, created_at) VALUES (?, ?, ?, ?)"
     )
     .bind(&id)
@@ -1186,17 +1217,23 @@ pub async fn create_prosign(
     .bind(&alternate)
     .bind(now.to_rfc3339())
     .execute(&state.db)
-    .await
-    .map_err(|e| {
-        // Check for UNIQUE constraint violation (duplicate prosign)
-        if e.to_string().contains("UNIQUE constraint failed") {
-            (StatusCode::CONFLICT, format!("Prosign '{}' already exists", prosign))
-        } else {
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        }
-    })?;
+    .await;
 
-    Ok(Json(serde_json::json!({ "success": true, "id": id })))
+    match result {
+        Ok(_) => {
+            tracing::info!("create_prosign success: {} = {}", prosign, alternate);
+            Ok(Json(serde_json::json!({ "success": true, "id": id })))
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            tracing::error!("create_prosign failed: {}", err_str);
+            if err_str.contains("UNIQUE constraint failed") {
+                Err((StatusCode::CONFLICT, format!("Prosign '{}' already exists", prosign)))
+            } else {
+                Err((StatusCode::INTERNAL_SERVER_ERROR, err_str))
+            }
+        }
+    }
 }
 
 /// PUT /api/admin/prosigns/:id - Update prosign mapping
@@ -1205,6 +1242,7 @@ pub async fn update_prosign(
     Path(prosign_id): Path<String>,
     Json(req): Json<CreateProsignRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    tracing::info!("update_prosign called for id {}: {:?}", prosign_id, req);
     // Validate input
     let prosign = req.prosign.trim().to_uppercase();
     let alternate = req.alternate.trim().to_uppercase();
@@ -1213,6 +1251,13 @@ pub async fn update_prosign(
         return Err((
             StatusCode::BAD_REQUEST,
             "Prosign and alternate cannot be empty".to_string(),
+        ));
+    }
+
+    if !prosign.starts_with('<') || !prosign.ends_with('>') {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Prosign must be wrapped in <> (e.g., <BT>)".to_string(),
         ));
     }
 
@@ -1261,4 +1306,202 @@ pub async fn delete_prosign(
     }
 
     Ok(Json(serde_json::json!({ "success": true })))
+}
+
+// ============================================================================
+// AUDIO UPLOAD ENDPOINT
+// ============================================================================
+
+const MAX_AUDIO_SIZE: usize = 50 * 1024 * 1024; // 50MB
+
+#[derive(Debug, Serialize)]
+pub struct UploadResponse {
+    pub success: bool,
+    pub audio_url: String,
+}
+
+/// POST /api/admin/upload-audio - Upload an audio file
+pub async fn upload_audio(
+    State(state): State<Arc<crate::AppState>>,
+    mut multipart: axum::extract::Multipart,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let mut filename: Option<String> = None;
+    let mut file_data: Option<Vec<u8>> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read multipart: {}", e)))?
+    {
+        let field_name = field.name().unwrap_or("").to_string();
+
+        if field_name == "file" {
+            // Get filename
+            let original_filename = field
+                .file_name()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "audio.mp3".to_string());
+
+            // Validate extension
+            if !original_filename.to_lowercase().ends_with(".mp3") {
+                return Err((StatusCode::BAD_REQUEST, "Only MP3 files are allowed".to_string()));
+            }
+
+            // Read file data with size limit
+            let data = field
+                .bytes()
+                .await
+                .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read file: {}", e)))?;
+
+            if data.len() > MAX_AUDIO_SIZE {
+                return Err((
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    format!("File too large. Maximum size is {}MB", MAX_AUDIO_SIZE / 1024 / 1024),
+                ));
+            }
+
+            filename = Some(original_filename);
+            file_data = Some(data.to_vec());
+        } else if field_name == "filename" {
+            // Optional custom filename
+            let custom_name = field
+                .text()
+                .await
+                .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read filename: {}", e)))?;
+            if !custom_name.is_empty() {
+                // Sanitize and ensure .mp3 extension
+                let sanitized = custom_name
+                    .chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
+                    .collect::<String>();
+                if sanitized.to_lowercase().ends_with(".mp3") {
+                    filename = Some(sanitized);
+                } else {
+                    filename = Some(format!("{}.mp3", sanitized));
+                }
+            }
+        }
+    }
+
+    let filename = filename.ok_or((StatusCode::BAD_REQUEST, "No file provided".to_string()))?;
+    let file_data = file_data.ok_or((StatusCode::BAD_REQUEST, "No file data".to_string()))?;
+
+    // Create audio directory if it doesn't exist
+    let audio_dir = format!("{}/audio", state.static_dir);
+    fs::create_dir_all(&audio_dir)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create audio directory: {}", e)))?;
+
+    // Generate unique filename to avoid collisions
+    let final_filename = if std::path::Path::new(&format!("{}/{}", audio_dir, filename)).exists() {
+        let stem = filename.trim_end_matches(".mp3").trim_end_matches(".MP3");
+        let timestamp = chrono::Utc::now().timestamp();
+        format!("{}-{}.mp3", stem, timestamp)
+    } else {
+        filename
+    };
+
+    let file_path = format!("{}/{}", audio_dir, final_filename);
+
+    // Write file
+    fs::write(&file_path, &file_data)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write file: {}", e)))?;
+
+    let audio_url = format!("/audio/{}", final_filename);
+    tracing::info!("Uploaded audio file: {}", audio_url);
+
+    Ok(Json(UploadResponse {
+        success: true,
+        audio_url,
+    }))
+}
+
+// ============================================================================
+// EMAIL TEMPLATE ENDPOINTS
+// ============================================================================
+
+/// GET /api/admin/settings/email-template
+pub async fn get_email_template(
+    State(state): State<Arc<crate::AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let result: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM settings WHERE key = 'email_template'"
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let template = result.map(|r| r.0).unwrap_or_else(|| {
+        "Hello {nickname},\n\nCongratulations on passing the Know Code Extra examination!\n\nYour certificate number is #{member_number}.\n\n73,\nKnow Code Extra".to_string()
+    });
+
+    Ok(Json(EmailTemplateResponse { template }))
+}
+
+/// PUT /api/admin/settings/email-template
+pub async fn save_email_template(
+    State(state): State<Arc<crate::AppState>>,
+    Json(req): Json<EmailTemplateRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('email_template', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    )
+    .bind(&req.template)
+    .execute(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// POST /api/admin/email/generate
+pub async fn generate_email(
+    State(state): State<Arc<crate::AppState>>,
+    Json(req): Json<GenerateEmailRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Get member info
+    #[derive(FromRow)]
+    struct MemberInfo {
+        callsign: String,
+        certificate_number: Option<i32>,
+        email: Option<String>,
+    }
+
+    let member: MemberInfo = sqlx::query_as(
+        "SELECT callsign, certificate_number, email FROM attempts WHERE id = ? AND validation_status = 'approved'"
+    )
+    .bind(&req.member_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .ok_or((StatusCode::NOT_FOUND, "Member not found".to_string()))?;
+
+    // Get template
+    let template_result: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM settings WHERE key = 'email_template'"
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let template = template_result.map(|r| r.0).unwrap_or_else(|| {
+        "Hello {nickname},\n\nCongratulations on passing the Know Code Extra examination!\n\nYour certificate number is #{member_number}.\n\n73,\nKnow Code Extra".to_string()
+    });
+
+    // Get nickname from QRZ if available, otherwise use callsign
+    // Note: lookup_name is added in Task 5; for now, fallback to callsign
+    let nickname = member.callsign.clone();
+
+    // Replace placeholders
+    let email = template
+        .replace("{callsign}", &member.callsign)
+        .replace("{member_number}", &member.certificate_number.unwrap_or(0).to_string())
+        .replace("{nickname}", &nickname);
+
+    Ok(Json(GenerateEmailResponse {
+        email,
+        recipient_email: member.email,
+    }))
 }
