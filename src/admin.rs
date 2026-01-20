@@ -1490,9 +1490,13 @@ pub async fn generate_email(
         "Hello {nickname},\n\nCongratulations on passing the Know Code Extra examination!\n\nYour certificate number is #{member_number}.\n\n73,\nKnow Code Extra".to_string()
     });
 
-    // Get nickname from QRZ if available, otherwise use callsign
-    // Note: lookup_name is added in Task 5; for now, fallback to callsign
-    let nickname = member.callsign.clone();
+    // Get nickname from QRZ if available
+    let nickname = if let Some(ref qrz) = state.qrz_client {
+        qrz.lookup_name(&member.callsign).await.ok().flatten()
+            .unwrap_or_else(|| member.callsign.clone())
+    } else {
+        member.callsign.clone()
+    };
 
     // Replace placeholders
     let email = template

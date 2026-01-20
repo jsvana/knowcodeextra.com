@@ -125,6 +125,47 @@ impl QrzClient {
         }
         None
     }
+
+    /// Lookup callsign and return first name if found
+    pub async fn lookup_name(&self, callsign: &str) -> Result<Option<String>, String> {
+        let session_key = self.get_session_key().await?;
+
+        let url = format!(
+            "https://xmldata.qrz.com/xml/current/?s={}&callsign={}",
+            session_key, callsign
+        );
+
+        let response = self
+            .http
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("QRZ lookup request failed: {}", e))?;
+
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("QRZ lookup response read failed: {}", e))?;
+
+        if text.contains("Session Timeout") || text.contains("Invalid session key") {
+            self.clear_session().await;
+            return Box::pin(self.lookup_name(callsign)).await;
+        }
+
+        Ok(Self::extract_fname(&text))
+    }
+
+    fn extract_fname(xml: &str) -> Option<String> {
+        if let Some(start) = xml.find("<fname>") {
+            if let Some(end) = xml[start..].find("</fname>") {
+                let fname = &xml[start + 7..start + end];
+                if !fname.is_empty() {
+                    return Some(fname.to_string());
+                }
+            }
+        }
+        None
+    }
 }
 
 /// Create QRZ client from environment variables, returns None if not configured
