@@ -9,6 +9,7 @@ import { AdminLayout } from "./admin-layout.jsx";
 import { AdminDashboard, AdminQueue, AdminApproved } from "./admin-queue.jsx";
 import { AdminSearch, AdminSettings } from "./admin-settings.jsx";
 import { TestManager, QuestionEditor } from "./admin-tests.jsx";
+import { AdminAllAttempts } from "./admin-attempts.jsx";
 
 function AdminApp() {
   const { isAuthenticated } = useAdminAuth();
@@ -21,7 +22,7 @@ function AdminApp() {
       if (hash.startsWith("#/admin/")) {
         const page = hash.replace("#/admin/", "");
         if (
-          ["dashboard", "queue", "approved", "search", "tests", "settings"].includes(
+          ["dashboard", "queue", "approved", "attempts", "search", "tests", "settings"].includes(
             page,
           )
         ) {
@@ -53,6 +54,9 @@ function AdminApp() {
       break;
     case "approved":
       content = <AdminApproved />;
+      break;
+    case "attempts":
+      content = <AdminAllAttempts />;
       break;
     case "search":
       content = <AdminSearch />;

@@ -27,6 +27,7 @@ export function AdminLayout({ children, currentPage, pendingCount = 0 }) {
     { id: "dashboard", label: "Dashboard", icon: "📊" },
     { id: "queue", label: "Queue", icon: "📋", badge: pendingCount },
     { id: "approved", label: "Approved", icon: "✓" },
+    { id: "attempts", label: "All Attempts", icon: "📄" },
     { id: "search", label: "Search", icon: "🔍" },
     { id: "tests", label: "Tests", icon: "📝" },
     { id: "settings", label: "Settings", icon: "⚙" },
