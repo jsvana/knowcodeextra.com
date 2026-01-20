@@ -390,6 +390,20 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // Create prosign_mappings table
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS prosign_mappings (
+            id TEXT PRIMARY KEY,
+            prosign TEXT NOT NULL UNIQUE,
+            alternate TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
     // Add test_id to attempts table (nullable for backwards compat)
     sqlx::query("ALTER TABLE attempts ADD COLUMN test_id TEXT")
         .execute(pool)
@@ -401,6 +415,12 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await
         .ok(); // Ignore error if column exists
+
+    // Add expected_copy_text column to tests table
+    sqlx::query("ALTER TABLE tests ADD COLUMN expected_copy_text TEXT")
+        .execute(pool)
+        .await
+        .ok();
 
     // Index for question lookups
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_questions_test_id ON questions(test_id)")
@@ -460,6 +480,16 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await
         .ok();
 
+    sqlx::query("ALTER TABLE attempts ADD COLUMN copy_text TEXT")
+        .execute(pool)
+        .await
+        .ok();
+
+    sqlx::query("ALTER TABLE attempts ADD COLUMN consecutive_correct INTEGER")
+        .execute(pool)
+        .await
+        .ok();
+
     // Index for validation queue queries
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_validation_status ON attempts(validation_status)")
         .execute(pool)
@@ -483,6 +513,27 @@ async fn setup_database(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await?;
 
         tracing::info!("Seeded default test: 20wpm-extra-1991");
+    }
+
+    // Seed default prosign mappings if none exist
+    let mapping_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM prosign_mappings")
+        .fetch_one(pool)
+        .await?;
+
+    if mapping_count.0 == 0 {
+        let now = Utc::now().to_rfc3339();
+        for (prosign, alternate) in [("<BT>", "="), ("<AR>", "+")] {
+            sqlx::query(
+                "INSERT INTO prosign_mappings (id, prosign, alternate, created_at) VALUES (?, ?, ?, ?)"
+            )
+            .bind(Uuid::new_v4().to_string())
+            .bind(prosign)
+            .bind(alternate)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        }
+        tracing::info!("Seeded default prosign mappings");
     }
 
     Ok(())
