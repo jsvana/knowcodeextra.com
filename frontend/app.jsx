@@ -73,6 +73,7 @@ export function App() {
   const [audioPlayed, setAudioPlayed] = useState(false);
   const [certificateNumber, setCertificateNumber] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [roster, setRoster] = useState([]);
   const [stats, setStats] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [blockedMessage, setBlockedMessage] = useState(null);
@@ -122,6 +123,19 @@ export function App() {
       }
     } catch (error) {
       console.error("Failed to fetch stats:", error);
+    }
+  };
+
+  // Fetch roster
+  const fetchRoster = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/roster`);
+      if (response.ok) {
+        const data = await response.json();
+        setRoster(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch roster:", error);
     }
   };
 
@@ -446,7 +460,7 @@ export function App() {
                   {"\u2192"}
                 </span>
               </button>
-              <div>
+              <div className="flex gap-4 justify-center">
                 <button
                   onClick={() => {
                     fetchLeaderboard();
@@ -456,6 +470,15 @@ export function App() {
                   className="font-mono text-sm text-amber-700 hover:text-amber-900 underline underline-offset-4"
                 >
                   VIEW LEADERBOARD
+                </button>
+                <button
+                  onClick={() => {
+                    fetchRoster();
+                    setView("roster");
+                  }}
+                  className="font-mono text-sm text-amber-700 hover:text-amber-900 underline underline-offset-4"
+                >
+                  VIEW ROSTER
                 </button>
               </div>
             </div>
@@ -1268,11 +1291,116 @@ export function App() {
             </div>
 
             {/* CTA */}
-            <div className="mt-8 text-center">
+            <div className="mt-8 flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  fetchRoster();
+                  setView("roster");
+                }}
+                className="font-mono text-sm text-amber-700 hover:text-amber-900 underline underline-offset-4"
+              >
+                VIEW ROSTER
+              </button>
               <button
                 onClick={() => setView("select")}
                 className="bg-amber-900 text-amber-50 px-8 py-4 font-mono tracking-widest
                         hover:bg-amber-800 transition-all shadow-lg"
+              >
+                TAKE THE TEST
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Roster Page
+  if (view === "roster") {
+    return (
+      <div className="min-h-screen bg-amber-50 text-stone-800 relative">
+        <VintagePattern />
+
+        <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+          <div className="bg-amber-50/95 backdrop-blur-sm shadow-2xl shadow-amber-900/10 border border-amber-200/50 px-8 py-10 md:px-12">
+            <button
+              onClick={() => setView("home")}
+              className="font-mono text-sm text-amber-700 hover:text-amber-900 mb-8 flex items-center gap-2 font-medium"
+            >
+              {"\u2190"} RETURN HOME
+            </button>
+
+            <h1
+              className="font-serif text-4xl font-bold text-amber-900 mb-2 text-center drop-shadow-sm"
+              style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                textShadow: "1px 1px 3px rgba(120, 53, 15, 0.1)",
+              }}
+            >
+              Member Roster
+            </h1>
+            <p className="text-center text-amber-700 mb-8 font-serif italic">
+              Certified Know Code Extra members
+            </p>
+
+            {/* Roster Table */}
+            <div className="bg-white border-2 border-amber-300 shadow-md overflow-hidden">
+              <div className="bg-amber-900 text-amber-50 px-6 py-3">
+                <div className="grid grid-cols-12 gap-4 font-mono text-xs tracking-widest">
+                  <div className="col-span-2">#</div>
+                  <div className="col-span-4">CALLSIGN</div>
+                  <div className="col-span-3 text-center">CERT #</div>
+                  <div className="col-span-3 text-center">DATE</div>
+                </div>
+              </div>
+
+              {roster.length === 0 ? (
+                <div className="px-6 py-12 text-center text-amber-600 font-serif italic">
+                  No members yet. Be the first!
+                </div>
+              ) : (
+                <div className="divide-y divide-amber-200">
+                  {roster.map((entry, index) => (
+                    <div key={entry.callsign} className="px-6 py-4">
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-2 font-mono text-amber-600">
+                          {index + 1}
+                        </div>
+                        <div className="col-span-4 font-mono text-lg font-bold text-amber-900">
+                          {entry.callsign}
+                        </div>
+                        <div className="col-span-3 text-center">
+                          <span className="inline-block bg-amber-100 border border-amber-300 px-3 py-1 font-mono text-amber-800">
+                            #{entry.certificate_number}
+                          </span>
+                        </div>
+                        <div className="col-span-3 text-center font-mono text-sm text-amber-700">
+                          {entry.validated_at
+                            ? new Date(entry.validated_at).toLocaleDateString()
+                            : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Navigation */}
+            <div className="mt-8 flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  fetchLeaderboard();
+                  fetchStats();
+                  setView("leaderboard");
+                }}
+                className="font-mono text-sm text-amber-700 hover:text-amber-900 underline underline-offset-4"
+              >
+                VIEW LEADERBOARD
+              </button>
+              <button
+                onClick={() => setView("select")}
+                className="bg-amber-900 text-amber-50 px-6 py-3 font-mono tracking-widest hover:bg-amber-800"
               >
                 TAKE THE TEST
               </button>
