@@ -785,10 +785,15 @@ export function App() {
                           focus:border-amber-500 focus:outline-none resize-none"
                   placeholder="Copy the transmission here..."
                 />
-                <p className="font-serif text-xs text-amber-700 mt-2 italic">
-                  Copy 100 characters (1 minute) solidly to pass, OR answer 7 of
-                  10 questions correctly.
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="font-serif text-xs text-amber-700 italic">
+                    Copy 100 consecutive correct characters to pass, OR answer 7 of 10 questions correctly.
+                  </p>
+                  <p className="font-serif text-xs text-amber-600">
+                    <strong>Prosigns:</strong> Enter prosigns in angle brackets, e.g., &lt;BT&gt; for break.
+                    Some prosigns can also be entered as their equivalent character (e.g., = for &lt;BT&gt;).
+                  </p>
+                </div>
               </div>
             )}
 
