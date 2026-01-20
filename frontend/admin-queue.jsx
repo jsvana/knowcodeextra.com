@@ -498,6 +498,9 @@ export function AdminApproved() {
   const [filter, setFilter] = useState(null); // null = all, false = not reached out, true = reached out
   const [selected, setSelected] = useState(new Set());
   const [toast, setToast] = useState(null);
+  const [emailModal, setEmailModal] = useState({ isOpen: false, member: null });
+  const [generatedEmail, setGeneratedEmail] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   const fetchApproved = async (page = 1) => {
     setLoading(true);
@@ -569,6 +572,33 @@ export function AdminApproved() {
   const copyEmail = (email) => {
     navigator.clipboard.writeText(email);
     setToast({ message: "Email copied", type: "success" });
+  };
+
+  const generateEmail = async (member) => {
+    setEmailModal({ isOpen: true, member });
+    setGenerating(true);
+    setGeneratedEmail(null);
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/email/generate`, {
+        method: "POST",
+        body: JSON.stringify({ member_id: member.id }),
+      });
+      if (!response.ok) throw new Error("Failed to generate email");
+      const data = await response.json();
+      setGeneratedEmail(data);
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+      setEmailModal({ isOpen: false, member: null });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyGeneratedEmail = () => {
+    if (generatedEmail) {
+      navigator.clipboard.writeText(generatedEmail.email);
+      setToast({ message: "Email copied to clipboard", type: "success" });
+    }
   };
 
   useEffect(() => {
@@ -650,13 +680,16 @@ export function AdminApproved() {
                 <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
                   REACHED OUT
                 </th>
+                <th className="px-4 py-3 text-left font-mono text-xs tracking-widest">
+                  ACTIONS
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-amber-200">
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center font-mono text-amber-600"
                   >
                     Loading...
@@ -665,7 +698,7 @@ export function AdminApproved() {
               ) : data.items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center font-serif italic text-amber-600"
                   >
                     No approved attempts
@@ -729,6 +762,14 @@ export function AdminApproved() {
                         {item.reached_out ? "Yes" : "No"}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => generateEmail(item)}
+                        className="text-xs bg-amber-600 text-white px-2 py-1 hover:bg-amber-700"
+                      >
+                        Email
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -762,6 +803,61 @@ export function AdminApproved() {
           </div>
         )}
       </div>
+
+      {/* Email Generation Modal */}
+      {emailModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setEmailModal({ isOpen: false, member: null })}
+          />
+          <div className="relative bg-white border-2 border-amber-300 shadow-xl max-w-2xl w-full p-6">
+            <h3 className="font-mono text-lg text-amber-900 mb-4">
+              Generate Email for {emailModal.member?.callsign}
+            </h3>
+            {generating ? (
+              <div className="font-mono text-amber-600 py-8 text-center">
+                Generating...
+              </div>
+            ) : generatedEmail ? (
+              <div className="space-y-4">
+                {generatedEmail.recipient_email && (
+                  <div>
+                    <label className="font-mono text-xs text-amber-600 block mb-1">
+                      RECIPIENT
+                    </label>
+                    <div className="font-mono text-amber-900">
+                      {generatedEmail.recipient_email}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="font-mono text-xs text-amber-600 block mb-1">
+                    EMAIL BODY
+                  </label>
+                  <pre className="bg-amber-50 border border-amber-200 p-4 font-mono text-sm whitespace-pre-wrap max-h-64 overflow-y-auto">
+                    {generatedEmail.email}
+                  </pre>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyGeneratedEmail}
+                    className="bg-amber-900 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-800"
+                  >
+                    Copy to Clipboard
+                  </button>
+                  <button
+                    onClick={() => setEmailModal({ isOpen: false, member: null })}
+                    className="border-2 border-amber-300 px-4 py-2 font-mono text-sm hover:bg-amber-100"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
