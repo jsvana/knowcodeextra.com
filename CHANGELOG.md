@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.1] - 2026-01-19
+
+### Added
+- `--version` and `--help` CLI flags
+
 ## [0.5.0] - 2026-01-19
 
 ### Added
