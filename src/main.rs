@@ -236,6 +236,8 @@ pub struct Test {
     pub active: bool,
     pub created_at: DateTime<Utc>,
     pub segments: Option<Vec<Segment>>,
+    #[serde(skip_serializing)]
+    pub expected_copy_text: Option<String>,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -249,6 +251,7 @@ struct TestRow {
     pub active: bool,
     pub created_at: DateTime<Utc>,
     pub segments: Option<String>, // JSON string from DB
+    pub expected_copy_text: Option<String>,
 }
 
 impl From<TestRow> for Test {
@@ -270,6 +273,7 @@ impl From<TestRow> for Test {
             active: row.active,
             created_at: row.created_at,
             segments,
+            expected_copy_text: row.expected_copy_text,
         }
     }
 }
@@ -312,7 +316,10 @@ pub struct TestSubmissionResponse {
     pub passed: bool,
     pub score: i32,
     pub passing_score: i32,
-    pub correct_answers: Option<std::collections::HashMap<String, String>>, // Only on pass
+    pub consecutive_correct: i32,
+    pub passing_copy_chars: i32,
+    pub pass_reason: Option<grading::PassReason>,
+    pub correct_answers: Option<std::collections::HashMap<String, String>>,
     pub certificate_id: Option<String>,
 }
 
@@ -830,7 +837,7 @@ async fn list_tests(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let rows: Vec<TestRow> = sqlx::query_as(
-        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at, segments
+        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at, segments, expected_copy_text
          FROM tests WHERE active = 1 ORDER BY speed_wpm"
     )
     .fetch_all(&state.db)
@@ -885,7 +892,7 @@ async fn submit_test(
 
     // Get test info
     let row: Option<TestRow> = sqlx::query_as(
-        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at, segments
+        "SELECT id, title, speed_wpm, year, audio_url, passing_score, active, created_at, segments, expected_copy_text
          FROM tests WHERE id = ? AND active = 1"
     )
     .bind(&test_id)
@@ -937,21 +944,41 @@ async fn submit_test(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Calculate score
-    let mut correct_count = 0;
-    let mut correct_answers: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    // Build correct answers map for grading
+    let correct_answers: std::collections::HashMap<String, String> = questions
+        .iter()
+        .map(|q| (q.id.clone(), q.correct_option.clone()))
+        .collect();
 
-    for q in &questions {
-        correct_answers.insert(q.id.clone(), q.correct_option.clone());
-        if let Some(user_answer) = submission.answers.get(&q.id) {
-            if user_answer.to_uppercase() == q.correct_option {
-                correct_count += 1;
-            }
-        }
-    }
+    // Grade questions using grading module
+    let (question_score, _question_results) = grading::grade_questions(&submission.answers, &correct_answers);
 
-    let copy_chars = submission.copy_text.as_ref().map(|t| t.len() as i32).unwrap_or(0);
-    let passed = correct_count >= test.passing_score || copy_chars >= 100;
+    // Grade copy text if expected_copy_text is set
+    let consecutive_correct = if let (Some(user_copy), Some(expected_copy)) =
+        (&submission.copy_text, &test.expected_copy_text)
+    {
+        // Fetch prosign mappings from database
+        let prosign_rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT prosign, alternate FROM prosign_mappings"
+        )
+        .fetch_all(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        grading::find_consecutive_correct(user_copy, expected_copy, &prosign_rows)
+    } else {
+        0
+    };
+
+    // Determine pass/fail using grading module
+    // Default passing_copy_chars to 100 (can be made configurable per test later)
+    let passing_copy_chars = 100;
+    let (passed, pass_reason) = grading::is_passing(
+        question_score,
+        consecutive_correct,
+        test.passing_score,
+        passing_copy_chars,
+    );
 
     // Record attempt
     let id = Uuid::new_v4().to_string();
@@ -959,28 +986,33 @@ async fn submit_test(
 
     sqlx::query(
         r#"
-        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at, validation_status, audio_progress, test_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO attempts (id, callsign, test_speed, questions_correct, copy_chars, passed, created_at, validation_status, audio_progress, test_id, copy_text, consecutive_correct)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&id)
     .bind(&callsign)
     .bind(test.speed_wpm)
-    .bind(correct_count)
-    .bind(copy_chars)
+    .bind(question_score)
+    .bind(consecutive_correct) // Store consecutive_correct as copy_chars for backward compat
     .bind(passed)
     .bind(now.to_rfc3339())
     .bind(if passed { Some("pending") } else { None::<&str> })
     .bind(submission.audio_progress)
     .bind(&test_id)
+    .bind(&submission.copy_text)
+    .bind(consecutive_correct)
     .execute(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let response = TestSubmissionResponse {
         passed,
-        score: correct_count,
+        score: question_score,
         passing_score: test.passing_score,
+        consecutive_correct,
+        passing_copy_chars,
+        pass_reason,
         correct_answers: if passed { Some(correct_answers) } else { None },
         certificate_id: if passed { Some(id) } else { None },
     };
