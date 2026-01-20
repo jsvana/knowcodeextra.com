@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.1] - 2026-01-19
+
+### Changed
+- Refactor frontend into modular file structure (index.jsx entry point, app.jsx, admin components)
+
 ## [0.2.4] - 2026-01-18
 
 ### Fixed

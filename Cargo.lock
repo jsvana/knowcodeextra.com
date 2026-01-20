@@ -1116,7 +1116,7 @@ dependencies = [
 
 [[package]]
 name = "knowcodeextra"
-version = "0.2.4"
+version = "0.3.1"
 dependencies = [
  "axum",
  "base64 0.22.1",
