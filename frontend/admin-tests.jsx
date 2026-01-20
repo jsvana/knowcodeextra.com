@@ -543,7 +543,14 @@ export function TestManager() {
   const [error, setError] = useState(null);
   const [editingQuestions, setEditingQuestions] = useState(null);
   const [editingSegments, setEditingSegments] = useState(null);
+  const [editingTest, setEditingTest] = useState(null);
   const [toggling, setToggling] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  // Prosign state
+  const [prosigns, setProsigns] = useState([]);
+  const [newProsign, setNewProsign] = useState({ prosign: "", alternate: "" });
+  const [loadingProsigns, setLoadingProsigns] = useState(false);
 
   const fetchTests = useCallback(async () => {
     try {
@@ -559,8 +566,70 @@ export function TestManager() {
     }
   }, [adminFetch]);
 
+  const fetchProsigns = async () => {
+    setLoadingProsigns(true);
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/prosigns`);
+      if (!response.ok) throw new Error("Failed to fetch prosigns");
+      const data = await response.json();
+      setProsigns(data);
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    } finally {
+      setLoadingProsigns(false);
+    }
+  };
+
+  const handleAddProsign = async () => {
+    if (!newProsign.prosign || !newProsign.alternate) return;
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/prosigns`, {
+        method: "POST",
+        body: JSON.stringify(newProsign),
+      });
+      if (!response.ok) throw new Error("Failed to add prosign");
+      setNewProsign({ prosign: "", alternate: "" });
+      fetchProsigns();
+      setToast({ message: "Prosign added", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const handleDeleteProsign = async (id) => {
+    try {
+      const response = await adminFetch(`${API_BASE}/api/admin/prosigns/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete prosign");
+      fetchProsigns();
+      setToast({ message: "Prosign deleted", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
+  const handleSaveTest = async (testData) => {
+    try {
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/tests/${testData.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ expected_copy_text: testData.expected_copy_text }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to update test");
+      setEditingTest(null);
+      await fetchTests();
+      setToast({ message: "Test updated", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
+  };
+
   useEffect(() => {
     fetchTests();
+    fetchProsigns();
   }, [fetchTests]);
 
   const handleToggleActive = async (test) => {
@@ -592,6 +661,27 @@ export function TestManager() {
 
   return (
     <div>
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 font-mono text-sm shadow-lg ${
+            toast.type === "error"
+              ? "bg-red-100 border-2 border-red-400 text-red-800"
+              : "bg-green-100 border-2 border-green-400 text-green-800"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span>{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              className="text-lg leading-none hover:opacity-70"
+            >
+              x
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border-2 border-red-300 p-4 mb-4">
           <p className="text-red-800 font-mono text-sm">{error}</p>
@@ -650,6 +740,12 @@ export function TestManager() {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
+                    onClick={() => setEditingTest(test)}
+                    className="px-3 py-1 font-mono text-xs border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+                  >
+                    Edit
+                  </button>
+                  <button
                     onClick={() => setEditingQuestions(test.id)}
                     className="px-3 py-1 font-mono text-xs border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
                   >
@@ -681,6 +777,57 @@ export function TestManager() {
         )}
       </div>
 
+      {/* Prosign Mappings */}
+      <div className="bg-white border-2 border-amber-300 shadow-sm mt-6">
+        <div className="bg-amber-900 text-amber-50 px-6 py-3 flex items-center justify-between">
+          <h3 className="font-mono text-sm tracking-widest">PROSIGN MAPPINGS</h3>
+        </div>
+        <div className="p-4">
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newProsign.prosign}
+              onChange={(e) => setNewProsign(p => ({ ...p, prosign: e.target.value.toUpperCase() }))}
+              placeholder="<BT>"
+              className="border-2 border-amber-300 px-3 py-2 font-mono text-sm w-24"
+            />
+            <span className="font-mono text-amber-600 self-center">=</span>
+            <input
+              type="text"
+              value={newProsign.alternate}
+              onChange={(e) => setNewProsign(p => ({ ...p, alternate: e.target.value.toUpperCase() }))}
+              placeholder="="
+              className="border-2 border-amber-300 px-3 py-2 font-mono text-sm w-16"
+            />
+            <button
+              onClick={handleAddProsign}
+              className="bg-amber-900 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-800"
+            >
+              Add
+            </button>
+          </div>
+          {loadingProsigns ? (
+            <div className="font-mono text-amber-600 text-sm">Loading prosigns...</div>
+          ) : (
+            <div className="space-y-2">
+              {prosigns.map((p) => (
+                <div key={p.id} className="flex items-center justify-between bg-amber-50 px-3 py-2">
+                  <span className="font-mono text-amber-800">
+                    {p.prosign} = {p.alternate}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteProsign(p.id)}
+                    className="text-red-600 hover:text-red-800 font-mono text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {editingQuestions && (
         <QuestionEditor
           testId={editingQuestions}
@@ -695,6 +842,68 @@ export function TestManager() {
           onClose={() => setEditingSegments(null)}
           onSave={() => fetchTests()}
         />
+      )}
+
+      {/* Test Edit Modal */}
+      {editingTest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEditingTest(null)} />
+
+          {/* Modal */}
+          <div className="relative bg-amber-50 border-4 border-amber-800 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Corner ornaments */}
+            <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-600" />
+            <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-600" />
+            <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-600" />
+            <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-600" />
+
+            {/* Header */}
+            <div className="bg-amber-900 text-amber-50 px-6 py-4 flex items-center justify-between">
+              <h2 className="font-mono text-sm tracking-widest">
+                EDIT TEST: {editingTest.title || `Test ${editingTest.id}`}
+              </h2>
+              <button
+                onClick={() => setEditingTest(null)}
+                className="text-amber-50 hover:text-amber-200 font-mono text-xl leading-none"
+              >
+                x
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="mb-4">
+                <label className="font-mono text-xs text-amber-700 block mb-1">
+                  EXPECTED COPY TEXT (for grading)
+                </label>
+                <textarea
+                  value={editingTest.expected_copy_text || ""}
+                  onChange={(e) => setEditingTest({ ...editingTest, expected_copy_text: e.target.value })}
+                  className="w-full border-2 border-amber-300 bg-white p-3 font-mono text-sm h-32 focus:border-amber-500 focus:outline-none"
+                  placeholder="Enter the expected copy text for this test..."
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingTest(null)}
+                  className="flex-1 px-4 py-3 font-mono text-sm tracking-widest border-2 border-amber-300 text-amber-800 hover:border-amber-500 hover:bg-amber-100 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveTest(editingTest)}
+                  className="flex-1 px-4 py-3 font-mono text-sm tracking-widest bg-amber-700 text-amber-50 hover:bg-amber-800 transition-all"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
