@@ -76,6 +76,8 @@ export function App() {
   const [stats, setStats] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [blockedMessage, setBlockedMessage] = useState(null);
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+  const [passReason, setPassReason] = useState(null);
   const [modal, setModal] = useState({
     isOpen: false,
     type: null,
@@ -249,7 +251,14 @@ export function App() {
       }
 
       const result = await res.json();
-      setScore({ correct: result.score, total: questions.length, copyChars: copyText.replace(/\s/g, "").length });
+      setScore({
+        correct: result.score,
+        total: questions.length,
+        copyChars: copyText.replace(/\s/g, "").length,
+        consecutiveCorrect: result.consecutive_correct || 0,
+      });
+      setConsecutiveCorrect(result.consecutive_correct || 0);
+      setPassReason(result.pass_reason);
       setPassed(result.passed);
       setTestComplete(true);
 
@@ -939,13 +948,21 @@ export function App() {
                     COPY
                   </p>
                   <p className="font-serif text-3xl font-bold text-amber-900">
-                    {score.copyChars} chars
+                    {consecutiveCorrect} correct
                   </p>
                   <p className="font-mono text-xs text-amber-600 mt-1 font-medium">
-                    {score.copyChars >= 100 ? "\u2713 PASSED" : "\u2717 Need 100+"}
+                    {consecutiveCorrect >= 100 ? "\u2713 PASSED" : "\u2717 Need 100+"}
                   </p>
                 </div>
               </div>
+
+              {passed && passReason && (
+                <div className="mt-4 mb-4 text-center">
+                  <span className="inline-block bg-green-100 border border-green-300 px-4 py-2 font-mono text-sm text-green-800">
+                    Passed by: {passReason === 'both' ? 'Questions & Copy' : passReason === 'questions' ? 'Questions' : 'Copy'}
+                  </span>
+                </div>
+              )}
 
               {passed && (
                 <div className="bg-amber-100 border-2 border-amber-400 p-6 mb-6">
