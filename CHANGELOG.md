@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0] - 2026-01-20
+
+### Added
+- Public member roster page with certified members list
+- Welcome email generator in admin panel
+  - Customizable email template with placeholders ({callsign}, {member_number}, {nickname})
+  - Per-member email generation from approved list
+  - QRZ first name lookup for personalized greetings
+- Public roster API endpoint (GET /api/roster)
+- Google-compliant robots.txt
+
+### Fixed
+- Ham2K PoLo member list now serves with UTF-8 charset for proper emoji display
+- Changed member list emoji from party popper to scroll (📜)
+
 ## [0.5.1] - 2026-01-19
 
 ### Added
