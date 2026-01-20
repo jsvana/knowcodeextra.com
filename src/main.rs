@@ -209,6 +209,13 @@ pub struct SpeedStats {
     pub passes: i64,
 }
 
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct RosterEntry {
+    pub callsign: String,
+    pub certificate_number: Option<i32>,
+    pub validated_at: Option<DateTime<Utc>>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
     pub limit: Option<i32>,
@@ -851,6 +858,25 @@ async fn get_stats(
     Ok(Json(stats))
 }
 
+/// GET /api/roster - Public roster of approved members
+async fn get_roster(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let entries: Vec<RosterEntry> = sqlx::query_as(
+        r#"
+        SELECT callsign, certificate_number, validated_at
+        FROM attempts
+        WHERE validation_status = 'approved'
+        ORDER BY certificate_number ASC
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(entries))
+}
+
 /// GET /api/tests - List active tests
 async fn list_tests(
     State(state): State<Arc<AppState>>,
@@ -1187,6 +1213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/attempts/:callsign", get(get_callsign_attempts))
         .route("/api/leaderboard", get(get_leaderboard))
         .route("/api/stats", get(get_stats))
+        .route("/api/roster", get(get_roster))
         .route("/api/tests", get(list_tests))
         .route("/api/tests/:test_id/questions", get(get_test_questions))
         .route("/api/tests/:test_id/submit", post(submit_test))
