@@ -88,6 +88,7 @@ pub struct AdminStatsResponse {
     pub total_certificates: i64,
     pub rejected_count: i64,
     pub recent_activity: Vec<RecentActivity>,
+    pub recent_attempts: Vec<RecentAttempt>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -95,6 +96,16 @@ pub struct RecentActivity {
     pub id: String,
     pub callsign: String,
     pub action: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct RecentAttempt {
+    pub id: String,
+    pub callsign: String,
+    pub questions_correct: i32,
+    pub consecutive_correct: Option<i32>,
+    pub passed: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -280,12 +291,26 @@ pub async fn get_admin_stats(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
+    // Recent attempts (last 10, both pass and fail)
+    let recent_attempts: Vec<RecentAttempt> = sqlx::query_as(
+        r#"
+        SELECT id, callsign, questions_correct, consecutive_correct, passed, created_at
+        FROM attempts
+        ORDER BY created_at DESC
+        LIMIT 10
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
     Ok(Json(AdminStatsResponse {
         pending_count: pending.0,
         approved_today: approved_today.0,
         total_certificates: total_certs.0,
         rejected_count: rejected.0,
         recent_activity: recent,
+        recent_attempts,
     }))
 }
 
