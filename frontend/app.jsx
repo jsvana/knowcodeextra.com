@@ -864,16 +864,18 @@ export function App() {
               </div>
             )}
 
-            {/* Submit */}
-            <div className="text-center">
-              <button
-                onClick={handleSubmit}
-                className="bg-amber-900 text-amber-50 px-12 py-4 font-mono tracking-widest
-                        hover:bg-amber-800 transition-all shadow-lg hover:shadow-xl"
-              >
-                SUBMIT EXAMINATION
-              </button>
-            </div>
+            {/* Submit - only show when audio is finished and all questions answered */}
+            {audioPlayed && Object.keys(answers).length === questions.length && (
+              <div className="text-center">
+                <button
+                  onClick={handleSubmit}
+                  className="bg-amber-900 text-amber-50 px-12 py-4 font-mono tracking-widest
+                          hover:bg-amber-800 transition-all shadow-lg hover:shadow-xl"
+                >
+                  SUBMIT EXAMINATION
+                </button>
+              </div>
+            )}
           </div>{" "}
           {/* End main content card */}
           {/* Abandon confirmation modal */}
