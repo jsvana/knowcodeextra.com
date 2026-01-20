@@ -137,6 +137,51 @@ export function AdminDashboard({ onNavigate }) {
           )}
         </div>
       </div>
+
+      {/* Recent Attempts */}
+      <div className="bg-white border-2 border-amber-300 shadow-sm">
+        <div className="bg-amber-900 text-amber-50 px-6 py-3">
+          <h3 className="font-mono text-sm tracking-widest">RECENT ATTEMPTS</h3>
+        </div>
+        <div className="divide-y divide-amber-200">
+          {!stats.recent_attempts || stats.recent_attempts.length === 0 ? (
+            <p className="px-6 py-8 text-center text-amber-600 font-serif italic">
+              No recent attempts
+            </p>
+          ) : (
+            stats.recent_attempts.map((item) => (
+              <div
+                key={item.id}
+                className={`px-6 py-4 flex items-center justify-between ${!item.passed ? "opacity-60" : ""}`}
+              >
+                <div>
+                  <span className="font-mono text-amber-900 font-bold">
+                    {item.callsign}
+                  </span>
+                  <span className="ml-2 font-mono text-sm text-amber-600">
+                    {item.questions_correct}/10
+                  </span>
+                  <span className="ml-2 font-mono text-sm text-amber-600">
+                    {item.consecutive_correct ?? "—"} consecutive
+                  </span>
+                  <span
+                    className={`ml-2 text-xs px-2 py-0.5 font-mono ${
+                      item.passed
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {item.passed ? "passed" : "failed"}
+                  </span>
+                </div>
+                <span className="font-mono text-xs text-amber-600">
+                  {new Date(item.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
