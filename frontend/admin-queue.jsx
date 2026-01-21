@@ -833,6 +833,14 @@ export function AdminApproved() {
                 )}
                 <div>
                   <label className="font-mono text-xs text-amber-600 block mb-1">
+                    SUBJECT
+                  </label>
+                  <div className="bg-amber-50 border border-amber-200 p-3 font-mono text-sm">
+                    {generatedEmail.subject}
+                  </div>
+                </div>
+                <div>
+                  <label className="font-mono text-xs text-amber-600 block mb-1">
                     EMAIL BODY
                   </label>
                   <pre className="bg-amber-50 border border-amber-200 p-4 font-mono text-sm whitespace-pre-wrap max-h-64 overflow-y-auto">
@@ -844,7 +852,16 @@ export function AdminApproved() {
                     onClick={copyGeneratedEmail}
                     className="bg-amber-900 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-800"
                   >
-                    Copy to Clipboard
+                    Copy Body
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedEmail.subject);
+                      setToast({ message: "Subject copied to clipboard", type: "success" });
+                    }}
+                    className="bg-amber-700 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-600"
+                  >
+                    Copy Subject
                   </button>
                   <button
                     onClick={() => setEmailModal({ isOpen: false, member: null })}

@@ -252,11 +252,14 @@ pub struct AllAttemptsResponse {
 #[derive(Debug, Deserialize)]
 pub struct EmailTemplateRequest {
     pub template: String,
+    #[serde(default)]
+    pub subject: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct EmailTemplateResponse {
     pub template: String,
+    pub subject: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -266,6 +269,7 @@ pub struct GenerateEmailRequest {
 
 #[derive(Debug, Serialize)]
 pub struct GenerateEmailResponse {
+    pub subject: String,
     pub email: String,
     pub recipient_email: Option<String>,
 }
@@ -1425,18 +1429,29 @@ pub async fn upload_audio(
 pub async fn get_email_template(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let result: Option<(String,)> = sqlx::query_as(
+    let template_result: Option<(String,)> = sqlx::query_as(
         "SELECT value FROM settings WHERE key = 'email_template'"
     )
     .fetch_optional(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let template = result.map(|r| r.0).unwrap_or_else(|| {
+    let subject_result: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM settings WHERE key = 'email_subject'"
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let template = template_result.map(|r| r.0).unwrap_or_else(|| {
         "Hello {nickname},\n\nCongratulations on passing the Know Code Extra examination!\n\nYour certificate number is #{member_number}.\n\n73,\nKnow Code Extra".to_string()
     });
 
-    Ok(Json(EmailTemplateResponse { template }))
+    let subject = subject_result.map(|r| r.0).unwrap_or_else(|| {
+        "Congratulations {callsign} - Know Code Extra Certificate #{member_number}".to_string()
+    });
+
+    Ok(Json(EmailTemplateResponse { template, subject }))
 }
 
 /// PUT /api/admin/settings/email-template
@@ -1452,6 +1467,17 @@ pub async fn save_email_template(
     .execute(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if let Some(ref subject) = req.subject {
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('email_subject', ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        )
+        .bind(subject)
+        .execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
 
     Ok(Json(serde_json::json!({ "success": true })))
 }
@@ -1490,6 +1516,18 @@ pub async fn generate_email(
         "Hello {nickname},\n\nCongratulations on passing the Know Code Extra examination!\n\nYour certificate number is #{member_number}.\n\n73,\nKnow Code Extra".to_string()
     });
 
+    // Get subject template
+    let subject_result: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM settings WHERE key = 'email_subject'"
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let subject_template = subject_result.map(|r| r.0).unwrap_or_else(|| {
+        "Congratulations {callsign} - Know Code Extra Certificate #{member_number}".to_string()
+    });
+
     // Get nickname from QRZ if available
     let nickname = if let Some(ref qrz) = state.qrz_client {
         qrz.lookup_name(&member.callsign).await.ok().flatten()
@@ -1498,13 +1536,22 @@ pub async fn generate_email(
         member.callsign.clone()
     };
 
-    // Replace placeholders
+    let member_number = member.certificate_number.unwrap_or(0).to_string();
+
+    // Replace placeholders in subject
+    let subject = subject_template
+        .replace("{callsign}", &member.callsign)
+        .replace("{member_number}", &member_number)
+        .replace("{nickname}", &nickname);
+
+    // Replace placeholders in body
     let email = template
         .replace("{callsign}", &member.callsign)
-        .replace("{member_number}", &member.certificate_number.unwrap_or(0).to_string())
+        .replace("{member_number}", &member_number)
         .replace("{nickname}", &nickname);
 
     Ok(Json(GenerateEmailResponse {
+        subject,
         email,
         recipient_email: member.email,
     }))

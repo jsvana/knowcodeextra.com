@@ -238,6 +238,7 @@ export function AdminSearch() {
 // Email Template Editor Component
 function EmailTemplateEditor() {
   const { adminFetch } = useAdminAuth();
+  const [subject, setSubject] = useState("");
   const [template, setTemplate] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -249,6 +250,7 @@ function EmailTemplateEditor() {
         const response = await adminFetch(`${API_BASE}/api/admin/settings/email-template`);
         if (!response.ok) throw new Error("Failed to fetch template");
         const data = await response.json();
+        setSubject(data.subject || "");
         setTemplate(data.template);
       } catch (err) {
         setToast({ message: err.message, type: "error" });
@@ -264,7 +266,7 @@ function EmailTemplateEditor() {
     try {
       const response = await adminFetch(`${API_BASE}/api/admin/settings/email-template`, {
         method: "PUT",
-        body: JSON.stringify({ template }),
+        body: JSON.stringify({ subject, template }),
       });
       if (!response.ok) throw new Error("Failed to save template");
       setToast({ message: "Template saved", type: "success" });
@@ -292,9 +294,25 @@ function EmailTemplateEditor() {
         <h3 className="font-mono text-sm tracking-widest">EMAIL TEMPLATE</h3>
       </div>
       <div className="p-6 space-y-4">
+        <p className="font-mono text-xs text-amber-700">
+          Available placeholders: {"{callsign}"}, {"{member_number}"}, {"{nickname}"}
+        </p>
         <div>
           <label className="font-mono text-xs text-amber-700 block mb-2">
-            Available placeholders: {"{callsign}"}, {"{member_number}"}, {"{nickname}"}
+            Subject Line
+          </label>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full border-2 border-amber-300 px-4 py-3 font-mono text-sm
+                     focus:border-amber-500 focus:outline-none"
+            placeholder="Enter email subject..."
+          />
+        </div>
+        <div>
+          <label className="font-mono text-xs text-amber-700 block mb-2">
+            Email Body
           </label>
           <textarea
             value={template}
