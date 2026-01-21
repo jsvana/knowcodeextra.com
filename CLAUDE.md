@@ -51,3 +51,7 @@ Config loads in order (later overrides earlier):
 ## Audio Files
 
 Test audio files go in `static/audio/20wpm/test.mp3`. These are not included in the repo.
+
+## Release
+
+The application is built and released by tagging a version on GitHub and then updating a SHA256 sum in a local Ansible repository. Ask the user for the repository details.

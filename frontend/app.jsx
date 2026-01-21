@@ -396,8 +396,8 @@ export function App() {
                 className="font-serif text-xl text-amber-800 max-w-2xl mx-auto leading-relaxed italic"
                 style={{ textShadow: "0 1px 2px rgba(255, 251, 235, 0.8)" }}
               >
-                "Take the historic FCC Morse Code examinations and prove your
-                proficiency with an authentic certificate"
+                Take the historic FCC Morse Code examinations and prove your
+                proficiency with an authentic certificate
               </p>
             </header>
 
