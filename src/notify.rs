@@ -1,13 +1,21 @@
-/// Send a notification via ntfy.sh when a test attempt is submitted
-pub async fn send_attempt_notification(ntfy_topic: &str, callsign: &str, passed: bool) {
+/// Send a notification via ntfy when a test attempt is submitted
+pub async fn send_attempt_notification(
+    ntfy_url: &str,
+    ntfy_topic: &str,
+    ntfy_username: &str,
+    ntfy_password: &str,
+    callsign: &str,
+    passed: bool,
+) {
     let status = if passed { "PASSED" } else { "FAILED" };
     let body = format!("{} submitted - {}", callsign, status);
 
-    let url = format!("https://ntfy.sh/{}", ntfy_topic);
+    let url = format!("{}/{}", ntfy_url.trim_end_matches('/'), ntfy_topic);
 
     let client = reqwest::Client::new();
     let result = client
         .post(&url)
+        .basic_auth(ntfy_username, Some(ntfy_password))
         .header("Title", "KnowCodeExtra")
         .body(body)
         .send()

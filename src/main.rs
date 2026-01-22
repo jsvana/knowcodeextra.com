@@ -60,7 +60,16 @@ pub struct Config {
     pub admin_jwt_secret: String,
 
     #[serde(default)]
+    pub ntfy_url: Option<String>,
+
+    #[serde(default)]
     pub ntfy_topic: Option<String>,
+
+    #[serde(default)]
+    pub ntfy_username: Option<String>,
+
+    #[serde(default)]
+    pub ntfy_password: Option<String>,
 }
 
 impl Config {
@@ -132,8 +141,17 @@ impl Config {
         if let Ok(v) = std::env::var("KNOWCODE_ADMIN_JWT_SECRET") {
             config.admin_jwt_secret = v;
         }
+        if let Ok(v) = std::env::var("KNOWCODE_NTFY_URL") {
+            config.ntfy_url = Some(v);
+        }
         if let Ok(v) = std::env::var("KNOWCODE_NTFY_TOPIC") {
             config.ntfy_topic = Some(v);
+        }
+        if let Ok(v) = std::env::var("KNOWCODE_NTFY_USERNAME") {
+            config.ntfy_username = Some(v);
+        }
+        if let Ok(v) = std::env::var("KNOWCODE_NTFY_PASSWORD") {
+            config.ntfy_password = Some(v);
         }
 
         Ok(config)
@@ -356,7 +374,10 @@ pub struct AppState {
     pub admin_jwt_secret: String,
     pub qrz_client: Option<qrz::QrzClient>,
     pub static_dir: String,
+    pub ntfy_url: Option<String>,
     pub ntfy_topic: Option<String>,
+    pub ntfy_username: Option<String>,
+    pub ntfy_password: Option<String>,
 }
 
 // ============================================================================
@@ -659,12 +680,20 @@ async fn create_attempt(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Send notification if configured
-    if let Some(ref topic) = state.ntfy_topic {
+    if let (Some(url), Some(topic), Some(username), Some(password)) = (
+        state.ntfy_url.as_ref(),
+        state.ntfy_topic.as_ref(),
+        state.ntfy_username.as_ref(),
+        state.ntfy_password.as_ref(),
+    ) {
+        let url = url.clone();
         let topic = topic.clone();
+        let username = username.clone();
+        let password = password.clone();
         let callsign_clone = callsign.clone();
         let passed = req.passed;
         tokio::spawn(async move {
-            notify::send_attempt_notification(&topic, &callsign_clone, passed).await;
+            notify::send_attempt_notification(&url, &topic, &username, &password, &callsign_clone, passed).await;
         });
     }
 
@@ -1070,11 +1099,19 @@ async fn submit_test(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Send notification if configured
-    if let Some(ref topic) = state.ntfy_topic {
+    if let (Some(url), Some(topic), Some(username), Some(password)) = (
+        state.ntfy_url.as_ref(),
+        state.ntfy_topic.as_ref(),
+        state.ntfy_username.as_ref(),
+        state.ntfy_password.as_ref(),
+    ) {
+        let url = url.clone();
         let topic = topic.clone();
+        let username = username.clone();
+        let password = password.clone();
         let callsign_clone = callsign.clone();
         tokio::spawn(async move {
-            notify::send_attempt_notification(&topic, &callsign_clone, passed).await;
+            notify::send_attempt_notification(&url, &topic, &username, &password, &callsign_clone, passed).await;
         });
     }
 
@@ -1174,7 +1211,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         admin_jwt_secret: config.admin_jwt_secret.clone(),
         qrz_client,
         static_dir: config.static_dir.clone(),
+        ntfy_url: config.ntfy_url.clone(),
         ntfy_topic: config.ntfy_topic.clone(),
+        ntfy_username: config.ntfy_username.clone(),
+        ntfy_password: config.ntfy_password.clone(),
     });
 
     // Generate initial PoLo notes file
