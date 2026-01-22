@@ -29,6 +29,7 @@ mod admin;
 mod certificate;
 mod grading;
 mod jwt;
+mod notify;
 mod qrz;
 
 // ============================================================================
@@ -57,6 +58,9 @@ pub struct Config {
 
     #[serde(default = "Config::default_admin_jwt_secret")]
     pub admin_jwt_secret: String,
+
+    #[serde(default)]
+    pub ntfy_topic: Option<String>,
 }
 
 impl Config {
@@ -127,6 +131,9 @@ impl Config {
         }
         if let Ok(v) = std::env::var("KNOWCODE_ADMIN_JWT_SECRET") {
             config.admin_jwt_secret = v;
+        }
+        if let Ok(v) = std::env::var("KNOWCODE_NTFY_TOPIC") {
+            config.ntfy_topic = Some(v);
         }
 
         Ok(config)
@@ -349,6 +356,7 @@ pub struct AppState {
     pub admin_jwt_secret: String,
     pub qrz_client: Option<qrz::QrzClient>,
     pub static_dir: String,
+    pub ntfy_topic: Option<String>,
 }
 
 // ============================================================================
@@ -649,6 +657,16 @@ async fn create_attempt(
     .execute(&state.db)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Send notification if configured
+    if let Some(ref topic) = state.ntfy_topic {
+        let topic = topic.clone();
+        let callsign_clone = callsign.clone();
+        let passed = req.passed;
+        tokio::spawn(async move {
+            notify::send_attempt_notification(&topic, &callsign_clone, passed).await;
+        });
+    }
 
     let response = AttemptResponse {
         id,
@@ -1051,6 +1069,15 @@ async fn submit_test(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
+    // Send notification if configured
+    if let Some(ref topic) = state.ntfy_topic {
+        let topic = topic.clone();
+        let callsign_clone = callsign.clone();
+        tokio::spawn(async move {
+            notify::send_attempt_notification(&topic, &callsign_clone, passed).await;
+        });
+    }
+
     let response = TestSubmissionResponse {
         passed,
         score: question_score,
@@ -1147,6 +1174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         admin_jwt_secret: config.admin_jwt_secret.clone(),
         qrz_client,
         static_dir: config.static_dir.clone(),
+        ntfy_topic: config.ntfy_topic.clone(),
     });
 
     // Generate initial PoLo notes file
