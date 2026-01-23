@@ -771,12 +771,14 @@ export function AdminApproved() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => generateEmail(item)}
-                        className="text-xs bg-amber-600 text-white px-2 py-1 hover:bg-amber-700"
-                      >
-                        Email
-                      </button>
+                      {item.email && (
+                        <button
+                          onClick={() => generateEmail(item)}
+                          className="text-xs bg-amber-600 text-white px-2 py-1 hover:bg-amber-700"
+                        >
+                          Email
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
