@@ -42,7 +42,9 @@
       "Bash(git -C /home/jsvana/projects/knowcodeextra.com commit -m \"$\\(cat <<''EOF''\nfeat: submit answers to server for validation\n\nReplace client-side score calculation with server-side validation.\nAnswers are now stored as {questionId: \"A\"} format and submitted to\n/api/tests/:id/submit endpoint. Correct answers only returned on pass.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git -C /home/jsvana/projects/knowcodeextra.com status frontend/knowcodeextra.jsx)",
       "Bash(git -C /home/jsvana/projects/knowcodeextra.com commit -m \"$\\(cat <<''EOF''\nfeat: update question display for API data format\n\n- Use question_number from API instead of index-based numbering\n- Add testComplete state to disable answer buttons after submission\n- Add correct answer highlighting \\(green ring\\) when test is passed\n- Add Question Review section on results page showing all questions\n  with user selections and correct answers highlighted\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(npx esbuild:*)"
+      "Bash(npx esbuild:*)",
+      "Bash(cargo check:*)",
+      "Bash(gh run watch:*)"
     ]
   }
 }

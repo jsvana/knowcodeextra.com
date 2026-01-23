@@ -201,7 +201,9 @@ export function AdminQueue({ onPendingCountChange }) {
   const [rejectNote, setRejectNote] = useState("");
 
   const isPassing = (item) => {
-    return item.questions_correct >= 7 || (item.consecutive_correct ?? 0) >= 100;
+    return (
+      item.questions_correct >= 7 || (item.consecutive_correct ?? 0) >= 100
+    );
   };
 
   const fetchQueue = async () => {
@@ -365,7 +367,10 @@ export function AdminQueue({ onPendingCountChange }) {
                     </button>
                     <div className="flex gap-4 mt-1 font-mono text-sm text-amber-600">
                       <span>{item.questions_correct}/10</span>
-                      <span>{item.consecutive_correct ?? item.copy_chars} consecutive</span>
+                      <span>
+                        {item.consecutive_correct ?? item.copy_chars}{" "}
+                        consecutive
+                      </span>
                       <span>{formatRelativeTime(item.created_at)}</span>
                     </div>
                   </div>
@@ -579,10 +584,13 @@ export function AdminApproved() {
     setGenerating(true);
     setGeneratedEmail(null);
     try {
-      const response = await adminFetch(`${API_BASE}/api/admin/email/generate`, {
-        method: "POST",
-        body: JSON.stringify({ member_id: member.id }),
-      });
+      const response = await adminFetch(
+        `${API_BASE}/api/admin/email/generate`,
+        {
+          method: "POST",
+          body: JSON.stringify({ member_id: member.id }),
+        },
+      );
       if (!response.ok) throw new Error("Failed to generate email");
       const data = await response.json();
       setGeneratedEmail(data);
@@ -847,7 +855,30 @@ export function AdminApproved() {
                     {generatedEmail.email}
                   </pre>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  {generatedEmail.recipient_email && (
+                    <button
+                      onClick={() => {
+                        const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(generatedEmail.recipient_email)}&su=${encodeURIComponent(generatedEmail.subject)}&body=${encodeURIComponent(generatedEmail.email)}`;
+                        window.open(gmailUrl, "_blank");
+                      }}
+                      className="bg-blue-600 text-white px-4 py-2 font-mono text-sm hover:bg-blue-700"
+                    >
+                      Open in Gmail
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedEmail.subject);
+                      setToast({
+                        message: "Subject copied to clipboard",
+                        type: "success",
+                      });
+                    }}
+                    className="bg-amber-700 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-600"
+                  >
+                    Copy Subject
+                  </button>
                   <button
                     onClick={copyGeneratedEmail}
                     className="bg-amber-900 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-800"
@@ -855,16 +886,9 @@ export function AdminApproved() {
                     Copy Body
                   </button>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedEmail.subject);
-                      setToast({ message: "Subject copied to clipboard", type: "success" });
-                    }}
-                    className="bg-amber-700 text-amber-50 px-4 py-2 font-mono text-sm hover:bg-amber-600"
-                  >
-                    Copy Subject
-                  </button>
-                  <button
-                    onClick={() => setEmailModal({ isOpen: false, member: null })}
+                    onClick={() =>
+                      setEmailModal({ isOpen: false, member: null })
+                    }
                     className="border-2 border-amber-300 px-4 py-2 font-mono text-sm hover:bg-amber-100"
                   >
                     Close
