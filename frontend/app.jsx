@@ -1,5 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { API_BASE, morsePatterns, getSegmentColor, VintagePattern, TelegraphKey } from "./shared.jsx";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import {
+  API_BASE,
+  morsePatterns,
+  getSegmentColor,
+  VintagePattern,
+  TelegraphKey,
+} from "./shared.jsx";
 
 // Confirmation Modal component (local version with different styling than shared)
 const ConfirmModal = ({
@@ -95,9 +107,9 @@ export function App() {
   // Fetch available tests on mount
   useEffect(() => {
     fetch(`${API_BASE}/api/tests`)
-      .then(res => res.json())
-      .then(data => setTests(data))
-      .catch(err => console.error('Failed to fetch tests:', err));
+      .then((res) => res.json())
+      .then((data) => setTests(data))
+      .catch((err) => console.error("Failed to fetch tests:", err));
   }, []);
 
   // Fetch leaderboard data
@@ -163,7 +175,7 @@ export function App() {
   const startTest = async (testId) => {
     setLoadingTest(true);
     try {
-      const test = tests.find(t => t.id === testId);
+      const test = tests.find((t) => t.id === testId);
       setCurrentTest(test);
 
       const res = await fetch(`${API_BASE}/api/tests/${testId}/questions`);
@@ -179,10 +191,10 @@ export function App() {
       setAudioPlayed(false);
       setAudioProgress(0);
       setAudioCurrentTime(0);
-      setView('test');
+      setView("test");
     } catch (err) {
-      console.error('Failed to fetch questions:', err);
-      alert('Failed to load test questions');
+      console.error("Failed to fetch questions:", err);
+      alert("Failed to load test questions");
     } finally {
       setLoadingTest(false);
     }
@@ -237,15 +249,15 @@ export function App() {
 
   const handleSubmit = async () => {
     if (!userCall.trim()) {
-      alert('Please enter your callsign');
+      alert("Please enter your callsign");
       return;
     }
 
     setIsSubmitting(true);
     try {
       const res = await fetch(`${API_BASE}/api/tests/${selectedTest}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           callsign: userCall.trim().toUpperCase(),
           answers: answers, // { questionId: "A", ... }
@@ -283,10 +295,10 @@ export function App() {
         setCertificateNumber(result.certificate_id);
       }
 
-      setView('results');
+      setView("results");
     } catch (err) {
-      console.error('Submit failed:', err);
-      alert('Failed to submit test: ' + err.message);
+      console.error("Submit failed:", err);
+      alert("Failed to submit test: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -311,7 +323,7 @@ export function App() {
   // Get segments for current test, with fallback
   const activeSegments = useMemo(() => {
     if (currentTest?.segments?.length > 0) {
-      return currentTest.segments.map(seg => ({
+      return currentTest.segments.map((seg) => ({
         name: seg.name,
         start: seg.start_time,
         end: seg.end_time ?? Infinity,
@@ -321,14 +333,16 @@ export function App() {
       }));
     }
     // Fallback: single segment covering entire audio
-    return [{
-      name: 'Test',
-      start: 0,
-      end: Infinity,
-      color: 'bg-green-600',
-      enablesCopy: true,
-      enablesQuestions: true,
-    }];
+    return [
+      {
+        name: "Test",
+        start: 0,
+        end: Infinity,
+        color: "bg-green-600",
+        enablesCopy: true,
+        enablesQuestions: true,
+      },
+    ];
   }, [currentTest]);
 
   // Get current audio segment based on playback time
@@ -614,7 +628,8 @@ export function App() {
                 <strong>Historical Note:</strong> From 1936 until 2007, the FCC
                 required amateur radio operators to demonstrate Morse code
                 proficiency. The 20 WPM test was required for the Amateur Extra
-                class license.
+                class license through 2000, and the speed was relaxed to 5 WPM
+                until 2007, when the requirement was removed altogether.
               </p>
             </div>
           </div>{" "}
@@ -651,7 +666,7 @@ export function App() {
                 onClick={handleAbandon}
                 className="font-mono text-sm text-amber-700 hover:text-amber-900 flex items-center gap-2 font-medium"
               >
-  {"\u2190"} ABANDON TEST
+                {"\u2190"} ABANDON TEST
               </button>
               <div className="text-right">
                 <span className="font-mono text-sm text-amber-600 block font-medium">
@@ -666,8 +681,9 @@ export function App() {
             {/* User guidance notice */}
             {!audioPlayed && !isPlaying && (
               <div className="mb-4 p-3 border-2 border-amber-300 bg-amber-100 text-amber-800 font-mono text-sm">
-                Sections will appear as the recording progresses. Copy practice appears during practice segments.
-                Questions appear during the test segment. You'll see everything together at the end.
+                Sections will appear as the recording progresses. Copy practice
+                appears during practice segments. Questions appear during the
+                test segment. You'll see everything together at the end.
               </div>
             )}
 
@@ -723,7 +739,11 @@ export function App() {
                               : "bg-amber-100 text-amber-900 hover:bg-white"
                           }`}
                 >
-                  {audioPlayed ? "\u2713" : isPlaying ? "\u275A\u275A" : "\u25B6"}
+                  {audioPlayed
+                    ? "\u2713"
+                    : isPlaying
+                      ? "\u275A\u275A"
+                      : "\u25B6"}
                 </button>
 
                 <div className="flex-1">
@@ -819,11 +839,14 @@ export function App() {
                 />
                 <div className="mt-2 space-y-1">
                   <p className="font-serif text-xs text-amber-700 italic">
-                    Copy 100 consecutive correct characters to pass, OR answer 7 of 10 questions correctly.
+                    Copy 100 consecutive correct characters to pass, OR answer 7
+                    of 10 questions correctly.
                   </p>
                   <p className="font-serif text-xs text-amber-600">
-                    <strong>Prosigns:</strong> Enter prosigns in angle brackets, e.g., &lt;BT&gt; for break.
-                    Some prosigns can also be entered as their equivalent character (e.g., = for &lt;BT&gt;).
+                    <strong>Prosigns:</strong> Enter prosigns in angle brackets,
+                    e.g., &lt;BT&gt; for break. Some prosigns can also be
+                    entered as their equivalent character (e.g., = for
+                    &lt;BT&gt;).
                   </p>
                 </div>
               </div>
@@ -845,8 +868,10 @@ export function App() {
                       { letter: "D", text: q.option_d },
                     ];
                     const isSelected = (letter) => answers[q.id] === letter;
-                    const isCorrect = (letter) => correctAnswers && correctAnswers[q.id] === letter;
-                    const showCorrect = testComplete && passed && correctAnswers;
+                    const isCorrect = (letter) =>
+                      correctAnswers && correctAnswers[q.id] === letter;
+                    const showCorrect =
+                      testComplete && passed && correctAnswers;
 
                     return (
                       <div
@@ -863,7 +888,9 @@ export function App() {
                           {options.map((opt) => (
                             <button
                               key={opt.letter}
-                              onClick={() => !testComplete && handleAnswer(q.id, opt.letter)}
+                              onClick={() =>
+                                !testComplete && handleAnswer(q.id, opt.letter)
+                              }
                               disabled={testComplete}
                               className={`p-3 text-left font-serif text-sm border-2 transition-all
                                        ${
@@ -888,17 +915,18 @@ export function App() {
             )}
 
             {/* Submit - only show when audio is finished and all questions answered */}
-            {audioPlayed && Object.keys(answers).length === questions.length && (
-              <div className="text-center">
-                <button
-                  onClick={handleSubmit}
-                  className="bg-amber-900 text-amber-50 px-12 py-4 font-mono tracking-widest
+            {audioPlayed &&
+              Object.keys(answers).length === questions.length && (
+                <div className="text-center">
+                  <button
+                    onClick={handleSubmit}
+                    className="bg-amber-900 text-amber-50 px-12 py-4 font-mono tracking-widest
                           hover:bg-amber-800 transition-all shadow-lg hover:shadow-xl"
-                >
-                  SUBMIT EXAMINATION
-                </button>
-              </div>
-            )}
+                  >
+                    SUBMIT EXAMINATION
+                  </button>
+                </div>
+              )}
           </div>{" "}
           {/* End main content card */}
           {/* Abandon confirmation modal */}
@@ -976,7 +1004,9 @@ export function App() {
                     {consecutiveCorrect} correct
                   </p>
                   <p className="font-mono text-xs text-amber-600 mt-1 font-medium">
-                    {consecutiveCorrect >= 100 ? "\u2713 PASSED" : "\u2717 Need 100+"}
+                    {consecutiveCorrect >= 100
+                      ? "\u2713 PASSED"
+                      : "\u2717 Need 100+"}
                   </p>
                 </div>
               </div>
@@ -984,7 +1014,12 @@ export function App() {
               {passed && passReason && (
                 <div className="mt-4 mb-4 text-center">
                   <span className="inline-block bg-green-100 border border-green-300 px-4 py-2 font-mono text-sm text-green-800">
-                    Passed by: {passReason === 'both' ? 'Questions & Copy' : passReason === 'questions' ? 'Questions' : 'Copy'}
+                    Passed by:{" "}
+                    {passReason === "both"
+                      ? "Questions & Copy"
+                      : passReason === "questions"
+                        ? "Questions"
+                        : "Copy"}
                   </span>
                 </div>
               )}
@@ -1017,7 +1052,10 @@ export function App() {
                         { letter: "D", text: q.option_d },
                       ];
                       return (
-                        <div key={q.id} className="border-b border-amber-200 pb-4 last:border-0">
+                        <div
+                          key={q.id}
+                          className="border-b border-amber-200 pb-4 last:border-0"
+                        >
                           <p className="font-serif text-amber-900 mb-2 text-sm">
                             <span className="font-mono text-amber-600 mr-2 font-medium">
                               {q.question_number}.
@@ -1027,7 +1065,8 @@ export function App() {
                           <div className="grid grid-cols-2 gap-1">
                             {options.map((opt) => {
                               const isSelected = answers[q.id] === opt.letter;
-                              const isCorrect = correctAnswers[q.id] === opt.letter;
+                              const isCorrect =
+                                correctAnswers[q.id] === opt.letter;
                               return (
                                 <div
                                   key={opt.letter}
@@ -1077,7 +1116,7 @@ export function App() {
               onClick={() => setView("select")}
               className="font-mono text-sm text-stone-400 hover:text-stone-200 mb-4"
             >
-{"\u2190"} Take Another Test
+              {"\u2190"} Take Another Test
             </button>
             <p className="font-mono text-xs text-stone-500">
               Right-click or long-press to save your certificate
